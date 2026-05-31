@@ -1,0 +1,58 @@
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+
+concurrency:
+  group: deploy-hostinger
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy Stellar Viking
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          command_timeout: 8m
+          script: |
+            set -e
+            APP_DIR="/opt/apps"
+            COMPOSE="docker compose -f $APP_DIR/docker-compose.prod.yml"
+
+            echo "══════════════════════════════════════"
+            echo "  Deploying Stellar Viking"
+            echo "══════════════════════════════════════"
+
+            # Pull latest code
+            cd $APP_DIR/stellar-viking
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Rebuild
+            cd $APP_DIR
+            $COMPOSE up -d --build --no-deps stellar-viking
+
+            echo "Waiting for container..."
+            sleep 10
+
+            # Verify health
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3002/health 2>/dev/null || echo "000")
+            echo "  Stellar Viking: HTTP $STATUS"
+
+            if [ "$STATUS" != "200" ]; then
+              echo "⚠️ Health check returned $STATUS"
+              $COMPOSE logs --tail=20 stellar-viking
+            fi
+
+            echo "✅ Stellar Viking deploy complete!"

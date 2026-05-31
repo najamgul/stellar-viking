@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stellar Viking — Voice Agent Test</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
+
+    .card {
+      background: #14141f;
+      border: 1px solid #2a2a3a;
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #a78bfa;
+      margin-bottom: 1rem;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: #1a1a2e;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #555;
+      transition: background 0.3s;
+    }
+    .dot.connected { background: #10b981; box-shadow: 0 0 8px #10b981; }
+    .dot.error { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+    .dot.speaking { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      color: white;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+    }
+    .btn-danger:hover { box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+
+    .btn-secondary {
+      background: #2a2a3a;
+      color: #ccc;
+      border: 1px solid #3a3a4a;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin: 1.5rem 0;
+    }
+
+    .transcript {
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+
+    .transcript-line {
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #1a1a2e;
+    }
+
+    .transcript-line .role {
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      margin-right: 0.5rem;
+    }
+    .role-user { color: #06b6d4; }
+    .role-agent { color: #a78bfa; }
+    .role-system { color: #666; font-style: italic; }
+
+    .visualizer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 40px;
+      margin: 1rem 0;
+    }
+
+    .visualizer .bar {
+      width: 4px;
+      background: #7c3aed;
+      border-radius: 2px;
+      transition: height 0.1s;
+    }
+
+    .setup-field {
+      margin-bottom: 1rem;
+    }
+    .setup-field label {
+      display: block;
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 0.3rem;
+    }
+    .setup-field input, .setup-field select {
+      width: 100%;
+      padding: 0.6rem 0.8rem;
+      background: #1a1a2e;
+      border: 1px solid #2a2a3a;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+    }
+    .setup-field input:focus, .setup-field select:focus {
+      outline: none;
+      border-color: #7c3aed;
+    }
+
+    .step { color: #888; font-size: 0.8rem; margin-bottom: 1.5rem; }
+    .step span { color: #a78bfa; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <h1>🎙️ Stellar Viking</h1>
+  <p class="subtitle">Voice AI Agent — Browser Test Console</p>
+
+  <!-- Step 1: Setup -->
+  <div class="card" id="setupCard">
+    <h2>⚙️ Quick Setup</h2>
+    <p class="step"><span>Step 1:</span> Make sure the server is running on localhost:3001</p>
+
+    <div class="setup-field">
+      <label>Agent Name</label>
+      <input type="text" id="agentName" value="Sarah" placeholder="Agent name" />
+    </div>
+    <div class="setup-field">
+      <label>Company Name</label>
+      <input type="text" id="companyName" value="Acme Consulting" placeholder="Company name" />
+    </div>
+    <div class="setup-field">
+      <label>Voice</label>
+      <select id="voice">
+        <option value="Kore">Kore (Female)</option>
+        <option value="Aoede">Aoede (Female)</option>
+        <option value="Leda">Leda (Female)</option>
+        <option value="Puck">Puck (Male)</option>
+        <option value="Charon">Charon (Male)</option>
+        <option value="Fenrir">Fenrir (Male)</option>
+        <option value="Orus">Orus (Male)</option>
+        <option value="Zephyr">Zephyr (Male)</option>
+      </select>
+    </div>
+    <div class="setup-field">
+      <label>Personality</label>
+      <input type="text" id="personality" value="Warm, professional, and knowledgeable." />
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="btnCreateAgent" onclick="createAgentAndTest()">
+        🚀 Create Agent & Start Test
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2: Active Call -->
+  <div class="card" id="callCard" style="display: none;">
+    <h2>📞 Live Call</h2>
+
+    <div class="status-bar">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">Connecting...</span>
+      <span style="margin-left: auto; color: #666;" id="timer">00:00</span>
+    </div>
+
+    <div class="visualizer" id="visualizer">
+      <!-- Bars created by JS -->
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-danger" id="btnEndCall" onclick="endCall()">
+        📴 End Call
+      </button>
+    </div>
+
+    <h2 style="margin-top: 1.5rem;">💬 Live Transcript</h2>
+    <div class="transcript" id="transcript">
+      <div class="transcript-line">
+        <span class="role role-system">system</span>
+        Waiting for connection...
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'https://stellar-viking.fly.dev';
+    let agentId = null;
+    let micStream = null;
+    let audioContext = null;
+    let playbackCtx = null;
+    let geminiWs = null;
+    let timerInterval = null;
+    let callStartTime = null;
+
+    // Playback queue — Gemini sends many small audio chunks, we queue them
+    let playbackQueue = [];
+    let nextPlayTime = 0;
+
+    // ─── Create Agent & Start Test ──────────────────────────
+
+    async function createAgentAndTest() {
+      const btn = document.getElementById('btnCreateAgent');
+      btn.disabled = true;
+      btn.textContent = '⏳ Setting up...';
+
+      try {
+        const res = await fetch(`${API_URL}/api/agents`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('agentName').value,
+            companyName: document.getElementById('companyName').value,
+            voice: document.getElementById('voice').value,
+            personality: document.getElementById('personality').value,
+            role: 'AI Assistant',
+            language: 'en',
+            greeting: `Hi! Thanks for calling ${document.getElementById('companyName').value}. How can I help you today?`,
+            guardrails: [],
+            status: 'active',
+          })
+        });
+
+        const data = await res.json();
+        agentId = data.agent.id;
+        addTranscript('system', `Agent "${data.agent.name}" created (${agentId})`);
+
+        document.getElementById('setupCard').style.display = 'none';
+        document.getElementById('callCard').style.display = 'block';
+
+        await startBrowserCall();
+      } catch (err) {
+        alert('Failed to connect to server. Make sure it\'s running on localhost:3001.\n\n' + err.message);
+        btn.disabled = false;
+        btn.textContent = '🚀 Create Agent & Start Test';
+      }
+    }
+
+    // ─── Browser Call (Mic → Server → Gemini) ───────────────
+
+    async function startBrowserCall() {
+      setStatus('connecting');
+
+      // Initialize playback context (single reusable one)
+      playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+      nextPlayTime = playbackCtx.currentTime;
+
+      const wsUrl = `ws://stellar-viking.fly.dev/test-call?agentId=${agentId}`;
+      geminiWs = new WebSocket(wsUrl);
+
+      geminiWs.onopen = async () => {
+        setStatus('connected');
+        addTranscript('system', 'Connected to voice engine. Speak into your mic!');
+        startTimer();
+        await startMicrophone();
+      };
+
+      geminiWs.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'audio') {
+          queueAudioPlayback(msg.data);
+          setStatus('speaking');
+        } else if (msg.type === 'transcript') {
+          addTranscript(msg.role, msg.text);
+          if (msg.role === 'agent') setStatus('connected');
+        } else if (msg.type === 'error') {
+          addTranscript('system', `Error: ${msg.message}`);
+          setStatus('error');
+        }
+      };
+
+      geminiWs.onerror = () => {
+        setStatus('error');
+        addTranscript('system', 'WebSocket error — check server logs');
+      };
+
+      geminiWs.onclose = () => {
+        setStatus('disconnected');
+        addTranscript('system', 'Call ended');
+        stopTimer();
+      };
+    }
+
+    // ─── Microphone Capture with Voice Activity Detection ────
+
+    async function startMicrophone() {
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+        });
+
+        audioContext = new AudioContext({ sampleRate: 16000 });
+        const source = audioContext.createMediaStreamSource(micStream);
+
+        // Use smaller buffer (2048 = ~128ms at 16kHz) for lower latency
+        const processor = audioContext.createScriptProcessor(2048, 1, 1);
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+
+        processor.onaudioprocess = (e) => {
+          if (!geminiWs || geminiWs.readyState !== WebSocket.OPEN) return;
+
+          const float32 = e.inputBuffer.getChannelData(0);
+
+          // Update visualizer always
+          updateVisualizer(float32);
+
+          // ── Simple VAD: compute RMS energy ──
+          let sumSq = 0;
+          for (let i = 0; i < float32.length; i++) {
+            sumSq += float32[i] * float32[i];
+          }
+          const rms = Math.sqrt(sumSq / float32.length);
+
+          // Only send if there's actual audio (RMS > threshold)
+          // Threshold 0.008 catches speech but skips ambient silence
+          if (rms < 0.008) return;
+
+          // Convert float32 → PCM 16-bit LE
+          const pcm16 = new Int16Array(float32.length);
+          for (let i = 0; i < float32.length; i++) {
+            pcm16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
+          }
+
+          // Encode to base64 efficiently
+          const uint8 = new Uint8Array(pcm16.buffer);
+          let binary = '';
+          for (let i = 0; i < uint8.length; i++) {
+            binary += String.fromCharCode(uint8[i]);
+          }
+          const base64 = btoa(binary);
+
+          geminiWs.send(JSON.stringify({ type: 'audio', data: base64 }));
+        };
+
+        createVisualizerBars();
+        addTranscript('system', '🎤 Microphone active — start talking!');
+
+      } catch (err) {
+        addTranscript('system', `Mic error: ${err.message}. Please allow microphone access.`);
+      }
+    }
+
+    // ─── Audio Playback Queue (PCM 24kHz from Gemini) ────────
+
+    function queueAudioPlayback(base64Pcm24k) {
+      if (!playbackCtx) return;
+
+      // Decode base64 → PCM Int16 → Float32
+      const binaryStr = atob(base64Pcm24k);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+
+      const pcm16 = new Int16Array(bytes.buffer);
+      if (pcm16.length === 0) return;
+
+      const float32 = new Float32Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) {
+        float32[i] = pcm16[i] / 32768;
+      }
+
+      // Create AudioBuffer at 24kHz
+      const buffer = playbackCtx.createBuffer(1, float32.length, 24000);
+      buffer.getChannelData(0).set(float32);
+
+      const source = playbackCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(playbackCtx.destination);
+
+      // Schedule seamlessly — queue chunks back-to-back
+      const now = playbackCtx.currentTime;
+      if (nextPlayTime < now) {
+        nextPlayTime = now;
+      }
+      source.start(nextPlayTime);
+      nextPlayTime += buffer.duration;
+    }
+
+    // ─── End Call ───────────────────────────────────────────
+
+    function endCall() {
+      if (geminiWs) { geminiWs.close(); geminiWs = null; }
+      if (audioContext) { audioContext.close(); audioContext = null; }
+      if (playbackCtx) { playbackCtx.close(); playbackCtx = null; }
+      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+      stopTimer();
+      setStatus('disconnected');
+    }
+
+    // ─── UI Helpers ─────────────────────────────────────────
+
+    function setStatus(state) {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      dot.className = 'dot';
+      switch (state) {
+        case 'connecting': text.textContent = 'Connecting...'; break;
+        case 'connected': dot.classList.add('connected'); text.textContent = 'Connected — Listening'; break;
+        case 'speaking': dot.classList.add('speaking'); text.textContent = 'Agent Speaking...'; break;
+        case 'error': dot.classList.add('error'); text.textContent = 'Error'; break;
+        case 'disconnected': text.textContent = 'Disconnected'; break;
+      }
+    }
+
+    function addTranscript(role, text) {
+      const div = document.getElementById('transcript');
+      const line = document.createElement('div');
+      line.className = 'transcript-line';
+      line.innerHTML = `<span class="role role-${role}">${role}</span>${text}`;
+      div.appendChild(line);
+      div.scrollTop = div.scrollHeight;
+    }
+
+    function startTimer() {
+      callStartTime = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+        const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+        const secs = String(elapsed % 60).padStart(2, '0');
+        document.getElementById('timer').textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopTimer() { if (timerInterval) clearInterval(timerInterval); }
+
+    function createVisualizerBars() {
+      const viz = document.getElementById('visualizer');
+      viz.innerHTML = '';
+      for (let i = 0; i < 20; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.height = '4px';
+        viz.appendChild(bar);
+      }
+    }
+
+    function updateVisualizer(samples) {
+      const bars = document.querySelectorAll('.visualizer .bar');
+      const step = Math.floor(samples.length / bars.length);
+      for (let i = 0; i < bars.length; i++) {
+        let sum = 0;
+        for (let j = 0; j < step; j++) {
+          sum += Math.abs(samples[i * step + j] || 0);
+        }
+        const avg = sum / step;
+        const height = Math.max(4, Math.min(40, avg * 200));
+        bars[i].style.height = `${height}px`;
+      }
+    }
+  </script>
+
+</body>
+</html>

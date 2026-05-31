@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stellar Viking — Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Theme: Dark (default) ────────────────── */
+    :root, [data-theme="dark"] {
+      --bg-primary: #0c0613;
+      --bg-secondary: #120b1c;
+      --bg-card: #1a1028;
+      --bg-card-hover: #221538;
+      --bg-input: #1e1230;
+      --border: #2a1c40;
+      --border-hover: #3d2a5c;
+      --text-primary: #f0ecf4;
+      --text-secondary: #9b8aad;
+      --text-muted: #6b5a80;
+      --accent: #5E0593;
+      --accent-mid: #741CA8;
+      --accent-light: #926DA8;
+      --accent-glow: rgba(94, 5, 147, 0.35);
+      --accent-gradient: linear-gradient(135deg, #741CA8, #5E0593);
+      --orange: #FB751D;
+      --orange-light: #FBC39E;
+      --orange-dark: #DC5700;
+      --teal: #13A185;
+      --teal-light: #65A095;
+      --teal-dark: #008D71;
+      --yellow: #DCDA00;
+      --yellow-light: #FBFA9E;
+      --success: #13A185;
+      --warning: #FB751D;
+      --danger: #B04500;
+      --sidebar-w: 260px;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --topbar-bg: rgba(12, 6, 19, 0.85);
+      --modal-bg: rgba(0, 0, 0, 0.75);
+      --shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    /* ─── Theme: Light ─────────────────────────── */
+    [data-theme="light"] {
+      --bg-primary: #f7f4fa;
+      --bg-secondary: #efe9f5;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f5f0fb;
+      --bg-input: #efe9f5;
+      --border: #d8cce6;
+      --border-hover: #c4b3d8;
+      --text-primary: #1a0e28;
+      --text-secondary: #5c4a70;
+      --text-muted: #8878a0;
+      --accent: #5E0593;
+      --accent-mid: #741CA8;
+      --accent-light: #926DA8;
+      --accent-glow: rgba(94, 5, 147, 0.15);
+      --accent-gradient: linear-gradient(135deg, #741CA8, #5E0593);
+      --orange: #DC5700;
+      --orange-light: #FBC39E;
+      --orange-dark: #B04500;
+      --teal: #008D71;
+      --teal-light: #65A095;
+      --teal-dark: #004C3D;
+      --yellow: #B0AF00;
+      --yellow-light: #FBFA9E;
+      --success: #008D71;
+      --warning: #DC5700;
+      --danger: #B04500;
+      --topbar-bg: rgba(247, 244, 250, 0.9);
+      --modal-bg: rgba(26, 14, 40, 0.4);
+      --shadow: 0 8px 25px rgba(94, 5, 147, 0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      overflow-x: hidden;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* ─── Theme Toggle ─────────────────────────── */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      user-select: none;
+    }
+    .theme-toggle .switch {
+      width: 40px; height: 22px;
+      background: var(--border);
+      border-radius: 11px;
+      position: relative;
+      transition: background 0.3s;
+    }
+    .theme-toggle .switch::after {
+      content: '';
+      width: 18px; height: 18px;
+      background: var(--accent-light);
+      border-radius: 50%;
+      position: absolute;
+      top: 2px; left: 2px;
+      transition: transform 0.3s;
+    }
+    [data-theme="light"] .theme-toggle .switch { background: var(--accent); }
+    [data-theme="light"] .theme-toggle .switch::after { transform: translateX(18px); background: white; }
+
+    /* ─── Sidebar ──────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      left: 0; top: 0;
+      z-index: 100;
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .sidebar-logo {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-logo h1 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-mid), var(--teal));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sidebar-logo span {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 1rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.7rem 1rem;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover { background: var(--bg-card); color: var(--text-primary); }
+    .nav-item.active {
+      background: linear-gradient(135deg, rgba(94,5,147,0.18), rgba(19,161,133,0.08));
+      color: var(--accent-light);
+      font-weight: 600;
+      border-left: 3px solid var(--accent-mid);
+    }
+    .nav-item .icon { font-size: 1.1rem; width: 24px; text-align: center; }
+
+    .sidebar-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .status-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 6px var(--teal);
+    }
+    .status-badge { background: rgba(19,161,133,0.12); color: var(--teal); }
+
+    /* ─── Main Content ────────────────────────── */
+    .main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      min-height: 100vh;
+      transition: background 0.3s;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--topbar-bg);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .topbar h2 { font-size: 1.2rem; font-weight: 700; }
+
+    .content { padding: 2rem; max-width: 1200px; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ─── Cards ─────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s, background 0.3s, box-shadow 0.2s;
+    }
+    .card:hover { border-color: var(--border-hover); box-shadow: var(--shadow); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .card-title { font-size: 0.95rem; font-weight: 600; }
+
+    /* ─── Stats Grid ───────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+    .stat-card:hover { border-color: var(--accent-mid); }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: -10px; right: -10px;
+      width: 90px; height: 90px;
+      background: radial-gradient(circle, var(--accent-glow), transparent);
+      opacity: 0.5;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-mid), var(--teal));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* ─── Buttons ───────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent-gradient);
+      color: white;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
+
+    .btn-orange {
+      background: linear-gradient(135deg, var(--orange), var(--orange-dark));
+      color: white;
+    }
+    .btn-orange:hover { box-shadow: 0 4px 15px rgba(251, 117, 29, 0.3); }
+
+    .btn-secondary {
+      background: var(--bg-input);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+    .btn-danger { background: rgba(176, 69, 0, 0.15); color: var(--danger); }
+    .btn-danger:hover { background: rgba(176, 69, 0, 0.25); }
+
+    .btn-success { background: rgba(19, 161, 133, 0.15); color: var(--success); }
+
+    .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.75rem; }
+    .btn-icon { padding: 0.5rem; min-width: 34px; justify-content: center; }
+
+    /* ─── Forms ─────────────────────────────────── */
+    .form-group { margin-bottom: 1rem; }
+
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.35rem;
+      font-weight: 500;
+    }
+
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--accent-mid);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    /* ─── Table ─────────────────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+
+    th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg-card-hover); }
+
+    /* ─── Tags & Badges ────────────────────────── */
+    .tag {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .tag-active { background: rgba(19, 161, 133, 0.15); color: var(--teal); }
+    .tag-draft { background: rgba(146, 109, 168, 0.2); color: var(--accent-light); }
+    .tag-ready { background: rgba(19, 161, 133, 0.15); color: var(--teal); }
+    .tag-error { background: rgba(176, 69, 0, 0.15); color: var(--danger); }
+
+    /* ─── Modal ─────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--modal-bg);
+      backdrop-filter: blur(6px);
+      z-index: 200;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 90%;
+      max-width: 560px;
+      max-height: 85vh;
+      overflow-y: auto;
+      animation: slideUp 0.25s ease;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-header h3 { font-size: 1.1rem; font-weight: 700; }
+    .modal-close {
+      background: none; border: none; color: var(--text-muted);
+      font-size: 1.3rem; cursor: pointer;
+      transition: color 0.2s;
+    }
+    .modal-close:hover { color: var(--text-primary); }
+
+    .modal-footer {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ─── Empty State ──────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: var(--text-muted);
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+    .empty-state p { font-size: 0.9rem; margin-bottom: 1rem; }
+
+    /* ─── Transcript ──────────────────────────── */
+    .transcript-box {
+      max-height: 400px;
+      overflow-y: auto;
+      background: var(--bg-input);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      font-size: 0.8rem;
+      line-height: 1.8;
+    }
+    .t-user { color: var(--teal); }
+    .t-agent { color: var(--accent-light); }
+    .t-system { color: var(--text-muted); font-style: italic; }
+
+    /* ─── Scrollbar ────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+    /* ─── Toast ─────────────────────────────────── */
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .toast {
+      padding: 0.75rem 1.25rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 500;
+      animation: fadeIn 0.3s ease;
+      min-width: 260px;
+      box-shadow: var(--shadow);
+    }
+    .toast-success { background: rgba(19,161,133,0.2); border: 1px solid var(--teal); color: var(--teal); }
+    .toast-error { background: rgba(176,69,0,0.2); border: 1px solid var(--danger); color: var(--danger); }
+    .toast-info { background: rgba(94,5,147,0.2); border: 1px solid var(--accent); color: var(--accent-light); }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateX(20px); } }
+
+    /* ─── Loading ───────────────────────────────── */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent-mid);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Drag & Drop ──────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.2s;
+      cursor: pointer;
+      margin-bottom: 1rem;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent-mid);
+      background: var(--accent-glow);
+    }
+    .drop-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .drop-zone p { font-size: 0.82rem; color: var(--text-secondary); }
+    .drop-zone .hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem; }
+    .file-preview {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.75rem; background: var(--bg-input); border-radius: var(--radius-sm);
+      margin-bottom: 1rem; font-size: 0.82rem;
+    }
+    .file-preview .name { flex: 1; font-weight: 600; }
+    .file-preview .size { color: var(--text-muted); font-size: 0.75rem; }
+    .file-preview .remove { cursor: pointer; color: var(--danger); }
+
+    /* ─── Charts ────────────────────────────────── */
+    .chart-container { position: relative; margin-bottom: 1rem; }
+    .chart-canvas { width: 100%; height: 180px; }
+    .chart-bar-wrap {
+      display: flex; align-items: flex-end; gap: 3px;
+      height: 140px; padding-top: 10px;
+    }
+    .chart-bar {
+      flex: 1; background: var(--accent-gradient);
+      border-radius: 3px 3px 0 0; min-height: 2px;
+      transition: height 0.4s ease;
+      position: relative;
+    }
+    .chart-bar:hover {
+      filter: brightness(1.3);
+    }
+    .chart-bar:hover::after {
+      content: attr(data-label);
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;
+      color: var(--text-primary); white-space: nowrap;
+    }
+    .chart-labels {
+      display: flex; gap: 3px; margin-top: 4px;
+    }
+    .chart-labels span {
+      flex: 1; text-align: center; font-size: 0.55rem;
+      color: var(--text-muted); overflow: hidden;
+    }
+    .donut-wrap {
+      display: flex; align-items: center; justify-content: center; gap: 2rem;
+    }
+    .donut-legend { font-size: 0.78rem; }
+    .donut-legend div {
+      display: flex; align-items: center; gap: 0.5rem;
+      margin-bottom: 0.4rem; color: var(--text-secondary);
+    }
+    .donut-legend .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+
+    /* ─── Live Monitor ─────────────────────────── */
+    .live-feed {
+      max-height: 500px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 0.25rem;
+    }
+    .live-event {
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+      animation: fadeIn 0.3s ease;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .live-event.ev-start { background: rgba(19,161,133,0.1); color: var(--teal); }
+    .live-event.ev-end { background: rgba(146,109,168,0.1); color: var(--accent-light); }
+    .live-event.ev-transcript { background: var(--bg-input); color: var(--text-secondary); }
+    .live-event .ev-time { color: var(--text-muted); font-size: 0.7rem; min-width: 60px; }
+    .live-pulse {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--teal); animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(19,161,133,0.5); }
+      50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(19,161,133,0); }
+    }
+
+    /* ─── Search ─────────────────────────────────── */
+    .search-bar {
+      position: relative; margin-bottom: 1rem;
+    }
+    .search-bar input {
+      width: 100%; padding: 0.6rem 0.9rem 0.6rem 2.2rem;
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-family: 'Inter', sans-serif; font-size: 0.85rem;
+    }
+    .search-bar input:focus { outline: none; border-color: var(--accent-mid); }
+    .search-bar::before {
+      content: '🔍'; position: absolute;
+      left: 0.7rem; top: 50%; transform: translateY(-50%);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Sidebar ──────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>⚡ Stellar Viking</h1>
+      <span>Voice AI Agent Platform</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="showPage('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" onclick="showPage('agents')">
+        <span class="icon">🤖</span> Agents
+      </button>
+      <button class="nav-item" onclick="showPage('knowledge')">
+        <span class="icon">📚</span> Knowledge Base
+      </button>
+      <button class="nav-item" onclick="showPage('tools')">
+        <span class="icon">🔧</span> Tools
+      </button>
+      <button class="nav-item" onclick="showPage('calls')">
+        <span class="icon">📞</span> Call Logs
+      </button>
+      <button class="nav-item" onclick="showPage('monitor')">
+        <span class="icon">🔴</span> Live Monitor
+      </button>
+      <button class="nav-item" onclick="showPage('dialer')">
+        <span class="icon">📱</span> Test Call
+      </button>
+      <button class="nav-item" onclick="showPage('apikeys')">
+        <span class="icon">🔑</span> API Keys
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-badge" id="serverStatus">Server Online</div>
+      <div class="theme-toggle" onclick="toggleTheme()">
+        <span>🌙</span>
+        <div class="switch"></div>
+        <span>☀️</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── Main Content ─────────────────────────── -->
+  <div class="main">
+    <div class="topbar">
+      <h2 id="pageTitle">Dashboard</h2>
+      <div id="topbarActions"></div>
+    </div>
+
+    <div class="content">
+      <!-- ─── Dashboard Page ─── -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card"><div class="stat-label">Total Agents</div><div class="stat-value" id="statAgents">—</div></div>
+          <div class="stat-card"><div class="stat-label">Active Sessions</div><div class="stat-value" id="statSessions">—</div></div>
+          <div class="stat-card"><div class="stat-label">Total Calls</div><div class="stat-value" id="statCalls">—</div></div>
+          <div class="stat-card"><div class="stat-label">Avg Duration</div><div class="stat-value" id="statAvgDur">—</div></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:1rem">
+          <div class="card">
+            <div class="card-title" style="margin-bottom:1rem">📈 Call Volume (Last 30 Days)</div>
+            <div class="chart-bar-wrap" id="chartVolume"></div>
+            <div class="chart-labels" id="chartVolumeLabels"></div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:1rem">📊 Calls by Agent</div>
+            <div class="donut-wrap">
+              <canvas id="chartDonut" width="120" height="120"></canvas>
+              <div class="donut-legend" id="chartDonutLegend"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Agents Overview</h3>
+            <button class="btn btn-primary btn-sm" onclick="showPage('agents'); openAgentModal()">+ New Agent</button>
+          </div>
+          <div id="dashboardAgentList"></div>
+        </div>
+      </div>
+
+      <!-- ─── Agents Page ──── -->
+      <div class="page" id="page-agents">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <p style="color:var(--text-secondary);font-size:0.85rem">Create and manage your AI voice agents</p>
+          <button class="btn btn-primary" onclick="openAgentModal()">+ Create Agent</button>
+        </div>
+        <div class="search-bar"><input id="agentSearch" placeholder="Search agents by name or company..." oninput="filterAgents()" /></div>
+        <div id="agentsList"></div>
+      </div>
+
+      <!-- ─── Knowledge Page ── -->
+      <div class="page" id="page-knowledge">
+        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem">
+          <div class="form-group" style="flex:1;margin:0">
+            <select id="kbAgentSelect" onchange="loadKnowledgeBase()" style="width:100%">
+              <option value="">— Select an agent —</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="openKBUploadModal()">📄 Upload Document</button>
+        </div>
+        <div id="kbStats" class="stats-grid" style="display:none"></div>
+        <div id="kbDocsList"></div>
+
+        <!-- KB Test Query -->
+        <div class="card" style="margin-top:1.5rem" id="kbTestCard" style="display:none">
+          <div class="card-header">
+            <h3 class="card-title">🔍 Test Knowledge Base</h3>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+            <input id="kbTestQuery" placeholder="Ask a question to test RAG retrieval..." style="flex:1;padding:0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:'Inter',sans-serif;font-size:0.85rem" />
+            <button class="btn btn-primary btn-sm" onclick="testKBQuery()">Search</button>
+          </div>
+          <div id="kbTestResults" style="margin-top:1rem"></div>
+        </div>
+      </div>
+
+      <!-- ─── Tools Page ───── -->
+      <div class="page" id="page-tools">
+        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem">
+          <div class="form-group" style="flex:1;margin:0">
+            <select id="toolsAgentSelect" onchange="loadTools()" style="width:100%">
+              <option value="">— Select an agent —</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn btn-secondary" onclick="openTemplatePicker()">🔌 From Template</button>
+            <button class="btn btn-primary" onclick="openToolModal()">+ Add Tool</button>
+          </div>
+        </div>
+        <div id="toolsList"></div>
+      </div>
+
+      <!-- ─── Calls Page ───── -->
+      <div class="page" id="page-calls">
+        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem">
+          <div class="form-group" style="flex:1;margin:0">
+            <select id="callsAgentSelect" onchange="loadCalls()" style="width:100%">
+              <option value="">— Select an agent —</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="exportCalls('json')" title="Export as JSON">📥 JSON</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportCalls('csv')" title="Export as CSV">📊 CSV</button>
+        </div>
+        <div class="search-bar"><input id="callSearch" placeholder="Search by caller number or status..." oninput="filterCalls()" /></div>
+        <div id="callsList"></div>
+      </div>
+
+      <!-- ─── Live Monitor Page ── -->
+      <div class="page" id="page-monitor">
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:0.75rem">
+              <div class="live-pulse"></div>
+              <h3 class="card-title">Live Call Feed</h3>
+            </div>
+            <span style="font-size:0.78rem;color:var(--text-muted)" id="monitorStatus">Connecting...</span>
+          </div>
+          <div class="live-feed" id="liveFeed">
+            <div class="empty-state" style="padding:2rem"><div class="icon">🔴</div><p>Waiting for live calls...</p><p style="font-size:0.78rem">Events will appear here in real-time when calls are active.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Dialer Page ──── -->
+      <div class="page" id="page-dialer">
+        <div class="card" style="max-width:500px">
+          <h3 class="card-title" style="margin-bottom:1rem">📱 Outbound Test Call</h3>
+          <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:1.5rem">
+            Trigger a call from Twilio to your phone. The AI agent will be on the line when you pick up.
+          </p>
+
+          <div class="form-group">
+            <label>Agent</label>
+            <select id="dialerAgent"></select>
+          </div>
+          <div class="form-group">
+            <label>Phone Number (with country code)</label>
+            <input type="tel" id="dialerPhone" placeholder="+917006694099" value="+917006694099" />
+          </div>
+
+          <button class="btn btn-primary" onclick="triggerCall()" id="btnCall" style="width:100%;justify-content:center;padding:0.85rem">
+            📞 Call Me Now
+          </button>
+          <div id="dialerResult" style="margin-top:1rem"></div>
+        </div>
+      </div>
+
+      <!-- ─── API Keys Page ── -->
+      <div class="page" id="page-apikeys">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+          <div>
+            <p style="color:var(--text-secondary);font-size:0.85rem">Generate API keys to let external CRM systems access your platform.</p>
+          </div>
+          <button class="btn btn-primary" onclick="openApiKeyModal()">+ Generate Key</button>
+        </div>
+
+        <div id="apiKeysList"></div>
+
+        <div class="card" style="margin-top:1.5rem">
+          <div class="card-header"><h3 class="card-title">📚 Quick Reference</h3></div>
+          <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.8">
+            <p><strong>Authentication:</strong> Send your API key in any of these ways:</p>
+            <div style="background:var(--bg-input);padding:0.75rem;border-radius:var(--radius-sm);margin:0.5rem 0;font-family:monospace;font-size:0.78rem">
+              Authorization: Bearer sv_live_xxx<br/>
+              X-API-Key: sv_live_xxx<br/>
+              ?api_key=sv_live_xxx
+            </div>
+            <p style="margin-top:0.75rem"><strong>Available Endpoints:</strong></p>
+            <table style="width:100%;margin-top:0.5rem">
+              <tr><td style="padding:0.3rem 0"><code style="color:var(--teal)">GET</code> /api/agents</td><td>List agents</td></tr>
+              <tr><td style="padding:0.3rem 0"><code style="color:var(--teal)">POST</code> /api/agents</td><td>Create agent</td></tr>
+              <tr><td style="padding:0.3rem 0"><code style="color:var(--teal)">GET</code> /api/agents/:id/calls</td><td>Get call logs</td></tr>
+              <tr><td style="padding:0.3rem 0"><code style="color:var(--orange)">POST</code> /api/call-me</td><td>Trigger outbound call</td></tr>
+              <tr><td style="padding:0.3rem 0"><code style="color:var(--orange)">POST</code> /api/agents/:id/knowledge</td><td>Upload KB document</td></tr>
+              <tr><td style="padding:0.3rem 0"><code style="color:var(--teal)">GET</code> /api/agents/:id/calls/export</td><td>Export calls (JSON/CSV)</td></tr>
+              <tr><td style="padding:0.3rem 0"><code style="color:var(--teal)">GET</code> /api/analytics</td><td>Platform analytics</td></tr>
+              <tr><td style="padding:0.3rem 0"><code style="color:var(--teal)">GET</code> /health</td><td>Health check (public)</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Toast Container ──── -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ─── Agent Modal ──────── -->
+  <div class="modal-overlay" id="agentModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="agentModalTitle">Create Agent</h3>
+        <button class="modal-close" onclick="closeModal('agentModal')">&times;</button>
+      </div>
+
+      <input type="hidden" id="agentEditId" />
+      <div class="form-row">
+        <div class="form-group"><label>Agent Name</label><input id="fAgentName" placeholder="Saika" /></div>
+        <div class="form-group"><label>Company Name</label><input id="fCompanyName" placeholder="Acme Inc" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Role</label><input id="fRole" placeholder="Customer Relations Manager" value="AI Assistant" /></div>
+        <div class="form-group">
+          <label>Voice</label>
+          <select id="fVoice">
+            <optgroup label="Female Voices">
+              <option value="Lily">Lily (Female, Warm)</option>
+              <option value="Riya">Riya (Female, Indian)</option>
+              <option value="Olivia">Olivia (Female, Professional)</option>
+              <option value="Chloe">Chloe (Female, Friendly)</option>
+              <option value="Aria">Aria (Female, Soft)</option>
+            </optgroup>
+            <optgroup label="Male Voices">
+              <option value="Clive">Clive (Male, Professional)</option>
+              <option value="Adam">Adam (Male, Casual)</option>
+              <option value="James">James (Male, Deep)</option>
+              <option value="Dennis">Dennis (Male, British)</option>
+              <option value="Alex">Alex (Male, Energetic)</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <!-- Voice Tuning -->
+      <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
+        <h4 style="margin:0 0 10px;color:var(--primary);font-size:0.9rem">🎙️ Voice & Language Settings</h4>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Language</label>
+          <select id="fLanguage">
+            <option value="en">English</option>
+            <option value="hi">Hindi (हिन्दी)</option>
+            <option value="en+hi">Hinglish (English + Hindi)</option>
+            <option value="es">Spanish (Español)</option>
+            <option value="fr">French (Français)</option>
+            <option value="ar">Arabic (العربية)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Conversation Style</label>
+          <select id="fConvStyle">
+            <option value="natural">Natural & Human-like</option>
+            <option value="professional">Professional & Formal</option>
+            <option value="casual">Casual & Friendly</option>
+            <option value="concise">Concise & Direct</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Speech Speed: <span id="speedVal">1.0x</span></label>
+          <input type="range" id="fSpeed" min="0.7" max="1.3" step="0.05" value="1.0" oninput="document.getElementById('speedVal').textContent=this.value+'x'" style="width:100%" />
+        </div>
+        <div class="form-group">
+          <label>Creativity: <span id="tempVal">0.8</span></label>
+          <input type="range" id="fTemperature" min="0.4" max="1.0" step="0.05" value="0.8" oninput="document.getElementById('tempVal').textContent=this.value" style="width:100%" />
+        </div>
+      </div>
+
+      <!-- Agent Details -->
+      <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
+        <h4 style="margin:0 0 10px;color:var(--primary);font-size:0.9rem">📋 Agent Details</h4>
+      </div>
+      <div class="form-group"><label>Personality</label><input id="fPersonality" placeholder="Warm, professional..." value="Warm, professional, and knowledgeable." /></div>
+      <div class="form-group"><label>Greeting</label><textarea id="fGreeting" rows="2" placeholder="Hi! Thanks for calling...">Hi! Thanks for calling. How can I help you today?</textarea></div>
+      <div class="form-group"><label>Phone Number (Twilio)</label><input id="fPhone" placeholder="+17754761653" /></div>
+      <div class="form-group"><label>Transfer Number (optional)</label><input id="fTransfer" placeholder="+91..." /></div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="fStatus"><option value="active">Active</option><option value="draft">Draft</option></select>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('agentModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveAgent()" id="btnSaveAgent">Create Agent</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── KB Upload Modal ──── -->
+  <div class="modal-overlay" id="kbModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Upload Document</h3>
+        <button class="modal-close" onclick="closeModal('kbModal')">&times;</button>
+      </div>
+
+      <div class="drop-zone" id="dropZone">
+        <div class="icon">📁</div>
+        <p>Drag & drop a file here</p>
+        <p class="hint">.txt, .md, .csv, .json — or click to browse</p>
+        <input type="file" id="fileInput" accept=".txt,.md,.csv,.json,.text" style="display:none" />
+      </div>
+
+      <div id="filePreview" style="display:none"></div>
+
+      <div class="form-group"><label>File Name</label><input id="fKBFileName" placeholder="services.txt" /></div>
+      <div class="form-group"><label>Content (or paste text)</label><textarea id="fKBContent" rows="8" placeholder="Paste your document content here, or drag a file above..."></textarea></div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('kbModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="uploadKBDocument()" id="btnUploadKB">📤 Upload & Index</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Tool Modal ─────── -->
+  <div class="modal-overlay" id="toolModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Add External Tool</h3>
+        <button class="modal-close" onclick="closeModal('toolModal')">&times;</button>
+      </div>
+
+      <div class="form-group"><label>Tool Name (snake_case)</label><input id="fToolName" placeholder="check_order_status" /></div>
+      <div class="form-group"><label>Description</label><textarea id="fToolDesc" rows="2" placeholder="What does this tool do?"></textarea></div>
+      <div class="form-group"><label>Endpoint URL</label><input id="fToolUrl" placeholder="https://api.example.com/orders/{{orderId}}" /></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>HTTP Method</label>
+          <select id="fToolMethod"><option>POST</option><option>GET</option><option>PUT</option></select>
+        </div>
+        <div class="form-group">
+          <label>Auth Type</label>
+          <select id="fToolAuth"><option value="none">None</option><option value="bearer">Bearer Token</option><option value="api_key">API Key</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Auth Value (token/key)</label><input id="fToolAuthVal" placeholder="sk-..." type="password" /></div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('toolModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveTool()">Add Tool</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Call Detail Modal ── -->
+  <div class="modal-overlay" id="callModal">
+    <div class="modal" style="max-width:640px">
+      <div class="modal-header">
+        <h3>Call Details</h3>
+        <button class="modal-close" onclick="closeModal('callModal')">&times;</button>
+      </div>
+      <div id="callDetailContent"></div>
+    </div>
+  </div>
+
+  <!-- ─── Template Picker Modal ── -->
+  <div class="modal-overlay" id="templateModal">
+    <div class="modal" style="max-width:680px">
+      <div class="modal-header">
+        <h3>🔌 Install CRM Integration</h3>
+        <button class="modal-close" onclick="closeModal('templateModal')">&times;</button>
+      </div>
+      <div id="templateList" style="max-height:400px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- ─── Template Config Modal ── -->
+  <div class="modal-overlay" id="templateConfigModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="templateConfigTitle">Configure Integration</h3>
+        <button class="modal-close" onclick="closeModal('templateConfigModal')">&times;</button>
+      </div>
+      <div id="templateConfigDesc" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:1rem"></div>
+      <div class="form-group"><label>Endpoint URL</label><input id="fTemplateUrl" placeholder="https://api.example.com/..." /></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Auth Type</label>
+          <select id="fTemplateAuth"><option value="bearer">Bearer Token</option><option value="api_key">API Key</option><option value="none">None</option></select>
+        </div>
+        <div class="form-group"><label>Auth Value</label><input id="fTemplateAuthVal" placeholder="sk-..." type="password" /></div>
+      </div>
+      <div id="templateExamples" style="font-size:0.75rem;color:var(--text-muted);margin-bottom:1rem"></div>
+      <input type="hidden" id="fTemplateId" />
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('templateConfigModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="installTemplate()">🔌 Install</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── API Key Modal ──── -->
+  <div class="modal-overlay" id="apiKeyModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Generate API Key</h3>
+        <button class="modal-close" onclick="closeModal('apiKeyModal')">&times;</button>
+      </div>
+      <div class="form-group"><label>Key Name</label><input id="fKeyName" placeholder="HubSpot Integration" /></div>
+      <div class="form-group">
+        <label>Scopes</label>
+        <select id="fKeyScopes">
+          <option value="all">All Access</option>
+          <option value="read">Read Only</option>
+          <option value="write">Write Only</option>
+          <option value="calls">Calls Only</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('apiKeyModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="generateKey()">🔑 Generate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── API Key Display Modal ── -->
+  <div class="modal-overlay" id="keyDisplayModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>🔑 Your API Key</h3>
+        <button class="modal-close" onclick="closeModal('keyDisplayModal')">&times;</button>
+      </div>
+      <div style="background:var(--bg-input);padding:1rem;border-radius:var(--radius-sm);font-family:monospace;font-size:0.82rem;word-break:break-all;margin-bottom:1rem" id="generatedKeyDisplay"></div>
+      <div style="background:rgba(251,117,29,0.1);border:1px solid rgba(251,117,29,0.3);padding:0.75rem;border-radius:var(--radius-sm);font-size:0.78rem;color:var(--orange)">
+        ⚠️ <strong>Copy this key now!</strong> It will never be shown again.
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="copyKey()">📋 Copy to Clipboard</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const API = '';  // Same origin
+  const authToken = localStorage.getItem('sv-token');
+
+  // ─── Auth Guard ─────────────────────────────────────
+  (async function checkAuth() {
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      });
+      if (res.status === 401) {
+        // Auth is enforced and we're not logged in
+        window.location.href = '/login.html';
+      }
+    } catch {}
+  })();
+
+  // ─── Navigation ─────────────────────────────────────
+  function showPage(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById(`page-${page}`).classList.add('active');
+    document.querySelector(`.nav-item[onclick*="${page}"]`).classList.add('active');
+
+    const titles = { dashboard:'Dashboard', agents:'Agents', knowledge:'Knowledge Base', tools:'Tools', calls:'Call Logs', monitor:'Live Monitor', dialer:'Test Call', apikeys:'API Keys' };
+    document.getElementById('pageTitle').textContent = titles[page] || page;
+
+    if (page === 'dashboard') loadDashboard();
+    if (page === 'agents') loadAgents();
+    if (page === 'knowledge') { populateAgentDropdowns(); loadKnowledgeBase(); }
+    if (page === 'tools') { populateAgentDropdowns(); loadTools(); }
+    if (page === 'calls') { populateAgentDropdowns(); loadCalls(); }
+    if (page === 'monitor') connectLiveMonitor();
+    if (page === 'dialer') populateAgentDropdowns();
+    if (page === 'apikeys') loadApiKeys();
+  }
+
+  // ─── API Helpers ────────────────────────────────────
+  async function api(path, method = 'GET', body = null) {
+    const opts = { method, headers: {} };
+    if (authToken) opts.headers['Authorization'] = `Bearer ${authToken}`;
+    if (body) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    }
+    const res = await fetch(`${API}${path}`, opts);
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || err.details || res.statusText); }
+    return res.json();
+  }
+
+  // ─── Toast ──────────────────────────────────────────
+  function toast(msg, type = 'info') {
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = msg;
+    document.getElementById('toastContainer').appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  // ─── Modals ─────────────────────────────────────────
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+  // ─── Dashboard ──────────────────────────────────────
+  async function loadDashboard() {
+    try {
+      const [agentsData, analytics] = await Promise.all([
+        api('/api/agents'),
+        api('/api/analytics')
+      ]);
+
+      document.getElementById('statAgents').textContent = agentsData.agents.length;
+      document.getElementById('statSessions').textContent = analytics.activeSessions;
+      document.getElementById('statCalls').textContent = analytics.totalCalls;
+      document.getElementById('statAvgDur').textContent = analytics.avgDuration ? `${analytics.avgDuration}s` : '—';
+
+      // ─── Volume Chart ───
+      renderVolumeChart(analytics.volumeByDay);
+
+      // ─── Donut Chart ────
+      renderDonutChart(analytics.callsByAgent);
+
+      // ─── Agents Table ───
+      const list = document.getElementById('dashboardAgentList');
+      if (agentsData.agents.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="icon">🤖</div><p>No agents yet</p><button class="btn btn-primary btn-sm" onclick="showPage(\'agents\');openAgentModal()">Create your first agent</button></div>';
+        return;
+      }
+
+      list.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Company</th><th>Voice</th><th>Phone</th><th>Status</th></tr></thead><tbody>' +
+        agentsData.agents.map(a => `
+          <tr style="cursor:pointer" onclick="showPage('agents')">
+            <td style="color:var(--text-primary);font-weight:600">${a.name}</td>
+            <td>${a.companyName || '—'}</td>
+            <td>${a.voice}</td>
+            <td style="font-family:monospace;font-size:0.78rem">${a.phoneNumber || '—'}</td>
+            <td><span class="tag tag-${a.status}">${a.status}</span></td>
+          </tr>
+        `).join('') + '</tbody></table></div>';
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ─── Chart: Volume Bars ─────────────────────────────
+  function renderVolumeChart(volumeByDay) {
+    const wrap = document.getElementById('chartVolume');
+    const labels = document.getElementById('chartVolumeLabels');
+    const entries = Object.entries(volumeByDay);
+    const maxVal = Math.max(1, ...entries.map(e => e[1]));
+
+    wrap.innerHTML = entries.map(([date, count]) => {
+      const h = Math.max(2, (count / maxVal) * 130);
+      return `<div class="chart-bar" style="height:${h}px" data-label="${date}: ${count} calls"></div>`;
+    }).join('');
+
+    labels.innerHTML = entries.map(([date], i) => {
+      const show = i % 5 === 0 || i === entries.length - 1;
+      return `<span>${show ? date.slice(5) : ''}</span>`;
+    }).join('');
+  }
+
+  // ─── Chart: Donut ───────────────────────────────────
+  function renderDonutChart(callsByAgent) {
+    const canvas = document.getElementById('chartDonut');
+    const ctx = canvas.getContext('2d');
+    const legend = document.getElementById('chartDonutLegend');
+    const colors = ['#741CA8', '#13A185', '#FB751D', '#DCDA00', '#5E0593', '#008D71', '#B04500'];
+    const entries = Object.entries(callsByAgent);
+    const total = entries.reduce((s, e) => s + e[1], 0) || 1;
+
+    ctx.clearRect(0, 0, 120, 120);
+    let startAngle = -Math.PI / 2;
+    entries.forEach(([name, count], i) => {
+      const slice = (count / total) * 2 * Math.PI;
+      ctx.beginPath();
+      ctx.arc(60, 60, 50, startAngle, startAngle + slice);
+      ctx.arc(60, 60, 28, startAngle + slice, startAngle, true);
+      ctx.closePath();
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.fill();
+      startAngle += slice;
+    });
+
+    // Center hole
+    ctx.beginPath();
+    ctx.arc(60, 60, 27, 0, Math.PI * 2);
+    const cs = getComputedStyle(document.documentElement);
+    ctx.fillStyle = cs.getPropertyValue('--bg-card').trim();
+    ctx.fill();
+
+    // Center text
+    ctx.fillStyle = cs.getPropertyValue('--text-primary').trim();
+    ctx.font = 'bold 16px Inter';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(total, 60, 60);
+
+    legend.innerHTML = entries.length ? entries.map(([name, count], i) =>
+      `<div><span class="dot" style="background:${colors[i % colors.length]}"></span>${name}: ${count}</div>`
+    ).join('') : '<div style="color:var(--text-muted)">No calls yet</div>';
+  }
+
+  // ─── Agents ─────────────────────────────────────────
+  async function loadAgents() {
+    try {
+      const data = await api('/api/agents');
+      _cachedAgents = data.agents;
+      const el = document.getElementById('agentsList');
+      renderAgentCards(data.agents, el);
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  function openAgentModal(agent = null) {
+    document.getElementById('agentEditId').value = agent ? agent.id : '';
+    document.getElementById('agentModalTitle').textContent = agent ? 'Edit Agent' : 'Create Agent';
+    document.getElementById('btnSaveAgent').textContent = agent ? 'Save Changes' : 'Create Agent';
+    document.getElementById('fAgentName').value = agent?.name || '';
+    document.getElementById('fCompanyName').value = agent?.companyName || '';
+    document.getElementById('fRole').value = agent?.role || 'AI Assistant';
+    document.getElementById('fVoice').value = agent?.voice || 'Lily';
+    document.getElementById('fLanguage').value = agent?.language || 'en';
+    document.getElementById('fConvStyle').value = agent?.conversationStyle || 'natural';
+    document.getElementById('fSpeed').value = agent?.speechSpeed || 1.0;
+    document.getElementById('speedVal').textContent = (agent?.speechSpeed || 1.0) + 'x';
+    document.getElementById('fTemperature').value = agent?.temperature || 0.8;
+    document.getElementById('tempVal').textContent = agent?.temperature || 0.8;
+    document.getElementById('fPersonality').value = agent?.personality || 'Warm, professional, and knowledgeable.';
+    document.getElementById('fGreeting').value = agent?.greeting || 'Hi! Thanks for calling. How can I help you today?';
+    document.getElementById('fPhone').value = agent?.phoneNumber || '';
+    document.getElementById('fTransfer').value = agent?.transferNumber || '';
+    document.getElementById('fStatus').value = agent?.status || 'active';
+    document.getElementById('agentModal').classList.add('open');
+  }
+
+  async function editAgent(id) {
+    const data = await api(`/api/agents/${id}`);
+    openAgentModal(data.agent);
+  }
+
+  async function saveAgent() {
+    const id = document.getElementById('agentEditId').value;
+    const body = {
+      name: document.getElementById('fAgentName').value,
+      companyName: document.getElementById('fCompanyName').value,
+      role: document.getElementById('fRole').value,
+      voice: document.getElementById('fVoice').value,
+      language: document.getElementById('fLanguage').value,
+      conversationStyle: document.getElementById('fConvStyle').value,
+      speechSpeed: parseFloat(document.getElementById('fSpeed').value),
+      temperature: parseFloat(document.getElementById('fTemperature').value),
+      personality: document.getElementById('fPersonality').value,
+      greeting: document.getElementById('fGreeting').value,
+      phoneNumber: document.getElementById('fPhone').value || null,
+      transferNumber: document.getElementById('fTransfer').value || null,
+      status: document.getElementById('fStatus').value,
+    };
+
+    try {
+      if (id) {
+        await api(`/api/agents/${id}`, 'PUT', body);
+        toast('Agent updated!', 'success');
+      } else {
+        await api('/api/agents', 'POST', body);
+        toast('Agent created!', 'success');
+      }
+      closeModal('agentModal');
+      loadAgents();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function deleteAgent(id) {
+    if (!confirm('Delete this agent and all its data?')) return;
+    try {
+      await api(`/api/agents/${id}`, 'DELETE');
+      toast('Agent deleted', 'success');
+      loadAgents();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ─── Knowledge Base ─────────────────────────────────
+  async function loadKnowledgeBase() {
+    const agentId = document.getElementById('kbAgentSelect').value;
+    const docsEl = document.getElementById('kbDocsList');
+    const statsEl = document.getElementById('kbStats');
+
+    if (!agentId) {
+      docsEl.innerHTML = '<div class="empty-state"><div class="icon">📚</div><p>Select an agent to view its knowledge base</p></div>';
+      statsEl.style.display = 'none';
+      return;
+    }
+
+    try {
+      const [docsData, statsData] = await Promise.all([
+        api(`/api/agents/${agentId}/knowledge`),
+        api(`/api/agents/${agentId}/knowledge/stats`)
+      ]);
+
+      statsEl.style.display = 'grid';
+      statsEl.innerHTML = `
+        <div class="stat-card"><div class="stat-label">Documents</div><div class="stat-value">${docsData.documents.length}</div></div>
+        <div class="stat-card"><div class="stat-label">Vector Chunks</div><div class="stat-value">${statsData.stats.count}</div></div>
+      `;
+
+      if (docsData.documents.length === 0) {
+        docsEl.innerHTML = '<div class="empty-state"><div class="icon">📄</div><p>No documents uploaded yet</p></div>';
+        return;
+      }
+
+      docsEl.innerHTML = '<div class="table-wrap"><table><thead><tr><th>File Name</th><th>Type</th><th>Chunks</th><th>Status</th><th>Uploaded</th><th></th></tr></thead><tbody>' +
+        docsData.documents.map(d => `
+          <tr>
+            <td style="color:var(--text-primary);font-weight:500">📄 ${d.fileName}</td>
+            <td>${d.fileType}</td>
+            <td>${d.chunkCount || 0}</td>
+            <td><span class="tag tag-${d.status}">${d.status}</span></td>
+            <td style="font-size:0.75rem">${new Date(d.createdAt).toLocaleDateString()}</td>
+            <td><button class="btn btn-danger btn-sm btn-icon" onclick="deleteKBDoc('${agentId}','${d.id}')">🗑</button></td>
+          </tr>
+        `).join('') + '</tbody></table></div>';
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  function openKBUploadModal() {
+    if (!document.getElementById('kbAgentSelect').value) { toast('Select an agent first', 'error'); return; }
+    document.getElementById('fKBFileName').value = '';
+    document.getElementById('fKBContent').value = '';
+    document.getElementById('kbModal').classList.add('open');
+  }
+
+  async function uploadKBDocument() {
+    const agentId = document.getElementById('kbAgentSelect').value;
+    const btn = document.getElementById('btnUploadKB');
+    btn.innerHTML = '<span class="spinner"></span> Indexing...';
+    btn.disabled = true;
+
+    try {
+      await api(`/api/agents/${agentId}/knowledge`, 'POST', {
+        fileName: document.getElementById('fKBFileName').value || 'document.txt',
+        fileType: 'txt',
+        content: document.getElementById('fKBContent').value,
+      });
+      toast('Document indexed successfully!', 'success');
+      closeModal('kbModal');
+      loadKnowledgeBase();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      btn.innerHTML = '📤 Upload & Index';
+      btn.disabled = false;
+    }
+  }
+
+  async function deleteKBDoc(agentId, docId) {
+    if (!confirm('Remove this document from the knowledge base?')) return;
+    try {
+      await api(`/api/agents/${agentId}/knowledge/${docId}`, 'DELETE');
+      toast('Document removed', 'success');
+      loadKnowledgeBase();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ─── Tools ──────────────────────────────────────────
+  async function loadTools() {
+    const agentId = document.getElementById('toolsAgentSelect').value;
+    const el = document.getElementById('toolsList');
+
+    if (!agentId) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">🔧</div><p>Select an agent to manage its tools</p></div>';
+      return;
+    }
+
+    try {
+      const data = await api(`/api/agents/${agentId}/tools`);
+      if (data.tools.length === 0) {
+        el.innerHTML = '<div class="empty-state"><div class="icon">🔧</div><p>No external tools configured</p><p style="font-size:0.78rem">Built-in tools (knowledge base, call summary, transfer, end call) are always available.</p></div>';
+        return;
+      }
+
+      el.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Tool Name</th><th>Endpoint</th><th>Method</th><th>Auth</th><th></th></tr></thead><tbody>' +
+        data.tools.map(t => `
+          <tr>
+            <td style="color:var(--text-primary);font-weight:500;font-family:monospace">${t.name}</td>
+            <td style="font-size:0.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis">${t.endpointUrl}</td>
+            <td><span class="tag tag-ready">${t.httpMethod}</span></td>
+            <td>${t.authType}</td>
+            <td><button class="btn btn-danger btn-sm btn-icon" onclick="deleteTool('${agentId}','${t.id}')">🗑</button></td>
+          </tr>
+        `).join('') + '</tbody></table></div>';
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  function openToolModal() {
+    if (!document.getElementById('toolsAgentSelect').value) { toast('Select an agent first', 'error'); return; }
+    document.getElementById('toolModal').classList.add('open');
+  }
+
+  async function saveTool() {
+    const agentId = document.getElementById('toolsAgentSelect').value;
+    try {
+      await api(`/api/agents/${agentId}/tools`, 'POST', {
+        name: document.getElementById('fToolName').value,
+        description: document.getElementById('fToolDesc').value,
+        endpointUrl: document.getElementById('fToolUrl').value,
+        httpMethod: document.getElementById('fToolMethod').value,
+        authType: document.getElementById('fToolAuth').value,
+        authValue: document.getElementById('fToolAuthVal').value || null,
+      });
+      toast('Tool added!', 'success');
+      closeModal('toolModal');
+      loadTools();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function deleteTool(agentId, toolId) {
+    if (!confirm('Remove this tool?')) return;
+    try {
+      await api(`/api/agents/${agentId}/tools/${toolId}`, 'DELETE');
+      toast('Tool removed', 'success');
+      loadTools();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ─── Call Logs ──────────────────────────────────────
+  async function loadCalls() {
+    const agentId = document.getElementById('callsAgentSelect').value;
+    const el = document.getElementById('callsList');
+
+    if (!agentId) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">📞</div><p>Select an agent to view call logs</p></div>';
+      return;
+    }
+
+    try {
+      const data = await api(`/api/agents/${agentId}/calls`);
+      _cachedCalls = data.calls;
+      renderCallTable(data.calls, el);
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ─── Shared Helpers ─────────────────────────────────
+  async function populateAgentDropdowns() {
+    try {
+      const data = await api('/api/agents');
+      const options = data.agents.map(a => `<option value="${a.id}">${a.name} (${a.companyName || 'No company'})</option>`).join('');
+      const defaultOpt = '<option value="">— Select an agent —</option>';
+
+      ['kbAgentSelect','toolsAgentSelect','callsAgentSelect','dialerAgent'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          const prev = el.value;
+          el.innerHTML = defaultOpt + options;
+          if (prev && data.agents.find(a => a.id === prev)) el.value = prev;
+        }
+      });
+    } catch (e) { /* silent */ }
+  }
+
+  async function viewCall(callId) {
+    try {
+      const data = await api(`/api/calls/${callId}`);
+      const c = data.call;
+      const s = c.summary || {};
+      const hasSummary = s.topic;
+
+      const sentimentColors = { positive: '#10b981', neutral: '#6b7280', negative: '#ef4444', mixed: '#f59e0b' };
+      const sentimentColor = sentimentColors[s.sentiment] || '#6b7280';
+
+      document.getElementById('callDetailContent').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.82rem;margin-bottom:1.5rem">
+          <div><strong style="color:var(--text-muted)">Caller:</strong> ${c.callerNumber}</div>
+          <div><strong style="color:var(--text-muted)">Direction:</strong> ${c.direction}</div>
+          <div><strong style="color:var(--text-muted)">Status:</strong> <span class="tag tag-${c.status === 'completed' ? 'active' : 'draft'}">${c.status}</span></div>
+          <div><strong style="color:var(--text-muted)">Duration:</strong> ${c.duration || '—'}s</div>
+          <div><strong style="color:var(--text-muted)">Started:</strong> ${new Date(c.startedAt).toLocaleString()}</div>
+          <div><strong style="color:var(--text-muted)">Tools Used:</strong> ${(c.toolsUsed || []).join(', ') || 'None'}</div>
+        </div>
+
+        ${hasSummary ? `
+        <div class="card" style="margin-bottom:1rem;padding:1rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+            <span class="card-title" style="margin:0">📋 AI Summary</span>
+            <div style="display:flex;gap:0.5rem;align-items:center">
+              <span style="font-size:0.72rem;padding:0.2rem 0.5rem;border-radius:6px;background:${sentimentColor}20;color:${sentimentColor};font-weight:600">${s.sentiment || '—'}</span>
+              <span class="tag tag-${s.resolution === 'resolved' ? 'active' : 'draft'}" style="font-size:0.7rem">${s.resolution || '—'}</span>
+            </div>
+          </div>
+          <p style="font-size:0.85rem;color:var(--text-primary);margin-bottom:0.5rem"><strong>${s.topic}</strong></p>
+          ${s.actionItems && s.actionItems.length > 0 ? `
+            <div style="margin-top:0.5rem">
+              <span style="font-size:0.75rem;font-weight:600;color:var(--text-muted)">ACTION ITEMS:</span>
+              <ul style="margin:0.3rem 0 0 1rem;font-size:0.8rem;color:var(--text-secondary)">
+                ${s.actionItems.map(a => `<li>${a}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+        </div>
+        ` : `
+        <div style="margin-bottom:1rem">
+          <button class="btn btn-secondary btn-sm" onclick="regenerateSummary('${c.id}')">🤖 Generate AI Summary</button>
+        </div>
+        `}
+
+        ${c.transcript ? `<div class="card-title" style="margin-bottom:0.5rem">💬 Transcript</div><div class="transcript-box">${c.transcript}</div>` : '<p style="color:var(--text-muted);font-size:0.82rem">No transcript available</p>'}
+      `;
+      document.getElementById('callModal').classList.add('open');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function regenerateSummary(callId) {
+    toast('Generating AI summary...', 'info');
+    try {
+      await api(`/api/calls/${callId}/summarize`, 'POST');
+      toast('Summary generated!', 'success');
+      viewCall(callId); // Reload the modal
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ─── Dialer ─────────────────────────────────────────
+  async function triggerCall() {
+    const btn = document.getElementById('btnCall');
+    btn.innerHTML = '<span class="spinner"></span> Calling...';
+    btn.disabled = true;
+
+    try {
+      const data = await api('/api/call-me', 'POST', {
+        to: document.getElementById('dialerPhone').value,
+        agentId: document.getElementById('dialerAgent').value,
+      });
+      document.getElementById('dialerResult').innerHTML = `
+        <div class="card" style="background:rgba(16,185,129,0.1);border-color:var(--success)">
+          <p style="color:var(--success);font-weight:600;margin-bottom:0.5rem">📞 Call initiated!</p>
+          <p style="font-size:0.82rem;color:var(--text-secondary)">Call SID: <code>${data.callSid}</code></p>
+          <p style="font-size:0.82rem;color:var(--text-secondary)">Pick up your phone — the AI agent is waiting!</p>
+        </div>
+      `;
+    } catch (e) {
+      document.getElementById('dialerResult').innerHTML = `
+        <div class="card" style="background:rgba(239,68,68,0.1);border-color:var(--danger)">
+          <p style="color:var(--danger);font-weight:600">${e.message}</p>
+        </div>
+      `;
+    } finally {
+      btn.innerHTML = '📞 Call Me Now';
+      btn.disabled = false;
+    }
+  }
+
+  // ─── Search: Agents ──────────────────────────────────
+  let _cachedAgents = [];
+  function filterAgents() {
+    const q = document.getElementById('agentSearch').value.toLowerCase();
+    const el = document.getElementById('agentsList');
+    const filtered = _cachedAgents.filter(a =>
+      a.name.toLowerCase().includes(q) ||
+      (a.companyName || '').toLowerCase().includes(q) ||
+      a.voice.toLowerCase().includes(q)
+    );
+    renderAgentCards(filtered, el);
+  }
+
+  function renderAgentCards(agents, el) {
+    if (agents.length === 0) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">🤖</div><p>No agents match your search</p></div>';
+      return;
+    }
+    el.innerHTML = agents.map(a => `
+      <div class="card" style="cursor:default">
+        <div class="card-header">
+          <div>
+            <span style="font-weight:700;font-size:1rem">${a.name}</span>
+            <span class="tag tag-${a.status}" style="margin-left:0.5rem">${a.status}</span>
+          </div>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn btn-secondary btn-sm" onclick="cloneAgent('${a.id}')" title="Clone">📋</button>
+            <button class="btn btn-secondary btn-sm" onclick="editAgent('${a.id}')">✏️ Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">🗑</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.82rem;color:var(--text-secondary)">
+          <div>🏢 <strong>${a.companyName || '—'}</strong></div>
+          <div>🎤 ${a.voice}</div>
+          <div>📞 ${a.phoneNumber || 'No phone'}</div>
+          <div>🌐 ${a.language}</div>
+        </div>
+        <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--text-muted)">
+          💬 "${a.greeting}"
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ─── Search: Calls ──────────────────────────────────
+  let _cachedCalls = [];
+  function filterCalls() {
+    const q = document.getElementById('callSearch').value.toLowerCase();
+    const el = document.getElementById('callsList');
+    const filtered = _cachedCalls.filter(c =>
+      c.callerNumber.toLowerCase().includes(q) ||
+      c.status.toLowerCase().includes(q) ||
+      (c.direction || '').toLowerCase().includes(q)
+    );
+    renderCallTable(filtered, el);
+  }
+
+  function renderCallTable(calls, el) {
+    if (calls.length === 0) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">📞</div><p>No calls match your search</p></div>';
+      return;
+    }
+    el.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Time</th><th>Caller</th><th>Direction</th><th>Duration</th><th>Status</th><th></th></tr></thead><tbody>' +
+      calls.map(c => `
+        <tr>
+          <td style="font-size:0.78rem">${new Date(c.startedAt).toLocaleString()}</td>
+          <td style="font-family:monospace;font-size:0.78rem">${c.callerNumber}</td>
+          <td>${c.direction === 'inbound' ? '📥' : '📤'} ${c.direction}</td>
+          <td>${c.duration || '—'}</td>
+          <td><span class="tag tag-${c.status === 'completed' ? 'active' : 'draft'}">${c.status}</span></td>
+          <td><button class="btn btn-secondary btn-sm" onclick="viewCall('${c.id}')">View</button></td>
+        </tr>
+      `).join('') + '</tbody></table></div>';
+  }
+
+  // ─── Drag & Drop ────────────────────────────────────
+  function initDropZone() {
+    const zone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    if (!zone) return;
+
+    zone.addEventListener('click', () => fileInput.click());
+
+    zone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      zone.classList.add('dragover');
+    });
+
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+  }
+
+  function handleFile(file) {
+    const preview = document.getElementById('filePreview');
+    const sizeKB = (file.size / 1024).toFixed(1);
+
+    // Show preview
+    preview.style.display = 'block';
+    preview.innerHTML = `
+      <div class="file-preview">
+        <span>📄</span>
+        <span class="name">${file.name}</span>
+        <span class="size">${sizeKB} KB</span>
+        <span class="remove" onclick="clearFile()">✕</span>
+      </div>
+    `;
+
+    // Auto-fill filename
+    document.getElementById('fKBFileName').value = file.name;
+
+    // Read file content
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById('fKBContent').value = e.target.result;
+    };
+    reader.readAsText(file);
+  }
+
+  function clearFile() {
+    document.getElementById('filePreview').style.display = 'none';
+    document.getElementById('filePreview').innerHTML = '';
+    document.getElementById('fKBFileName').value = '';
+    document.getElementById('fKBContent').value = '';
+    document.getElementById('fileInput').value = '';
+  }
+
+  // ─── Live Monitor WebSocket ─────────────────────────
+  let adminWs = null;
+  let liveEventCount = 0;
+
+  function connectLiveMonitor() {
+    if (adminWs && adminWs.readyState === WebSocket.OPEN) return;
+
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    adminWs = new WebSocket(`${protocol}//${location.host}/admin-ws`);
+
+    adminWs.onopen = () => {
+      document.getElementById('monitorStatus').textContent = '🟢 Connected';
+    };
+
+    adminWs.onclose = () => {
+      document.getElementById('monitorStatus').textContent = '🔴 Disconnected';
+      adminWs = null;
+      // Auto-reconnect after 3s
+      setTimeout(() => {
+        if (document.getElementById('page-monitor').classList.contains('active')) {
+          connectLiveMonitor();
+        }
+      }, 3000);
+    };
+
+    adminWs.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'connected') return;
+        appendLiveEvent(msg);
+      } catch {}
+    };
+  }
+
+  function appendLiveEvent(msg) {
+    const feed = document.getElementById('liveFeed');
+    // Remove empty state on first event
+    if (liveEventCount === 0) {
+      const empty = feed.querySelector('.empty-state');
+      if (empty) empty.remove();
+    }
+    liveEventCount++;
+
+    const time = new Date(msg.timestamp).toLocaleTimeString();
+    let cssClass = 'ev-transcript';
+    let icon = '💬';
+    let text = '';
+
+    switch (msg.type) {
+      case 'call.started':
+        cssClass = 'ev-start';
+        icon = '📞';
+        text = `<strong>${msg.data.agentName}</strong> — call started from <code>${msg.data.callerNumber}</code>`;
+        break;
+      case 'call.ended':
+        cssClass = 'ev-end';
+        icon = '📴';
+        text = `<strong>${msg.data.agentName}</strong> — call ended (${msg.data.duration}s, ${msg.data.transcriptLines} lines)`;
+        break;
+      case 'call.transcript':
+        icon = msg.data.role === 'user' ? '🗣️' : '🤖';
+        text = `<strong>${msg.data.agentName}</strong> [${msg.data.role}] ${msg.data.text}`;
+        break;
+      default:
+        text = JSON.stringify(msg.data);
+    }
+
+    const el = document.createElement('div');
+    el.className = `live-event ${cssClass}`;
+    el.innerHTML = `<span class="ev-time">${time}</span> ${icon} ${text}`;
+    feed.prepend(el);
+
+    // Cap at 200 events
+    while (feed.children.length > 200) feed.lastChild.remove();
+  }
+
+  // ─── Agent Clone ────────────────────────────────────
+  async function cloneAgent(agentId) {
+    if (!confirm('Clone this agent?')) return;
+    try {
+      const data = await api(`/api/agents/${agentId}/clone`, 'POST');
+      toast(`Agent cloned as "${data.agent.name}"`, 'success');
+      loadAgents();
+      populateAgentDropdowns();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ─── KB Test Query ──────────────────────────────────
+  async function testKBQuery() {
+    const agentId = document.getElementById('kbAgentSelect').value;
+    const question = document.getElementById('kbTestQuery').value.trim();
+    const el = document.getElementById('kbTestResults');
+
+    if (!agentId) { toast('Select an agent first', 'error'); return; }
+    if (!question) { toast('Enter a question', 'error'); return; }
+
+    el.innerHTML = '<div style="text-align:center;padding:1rem"><span class="spinner"></span> Searching...</div>';
+
+    try {
+      const data = await api(`/api/agents/${agentId}/knowledge/query`, 'POST', { question, topK: 5 });
+
+      if (data.results.length === 0) {
+        el.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;padding:0.5rem">No results found. Upload documents first.</div>';
+        return;
+      }
+
+      el.innerHTML = data.results.map((r, i) => `
+        <div class="card" style="margin:0.5rem 0;padding:0.75rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+            <span style="font-weight:600;font-size:0.78rem;color:var(--accent-light)">#${i+1} — ${r.source}</span>
+            <div style="display:flex;gap:0.5rem;font-size:0.72rem;color:var(--text-muted)">
+              <span title="Combined score">🎯 ${r.score}</span>
+              ${r.vectorScore !== undefined ? `<span title="Vector similarity">🧠 ${r.vectorScore}</span>` : ''}
+              ${r.keywordScore !== undefined ? `<span title="Keyword match">🔤 ${r.keywordScore}</span>` : ''}
+            </div>
+          </div>
+          <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.5">${r.text}</div>
+        </div>
+      `).join('');
+    } catch (e) { toast(e.message, 'error'); el.innerHTML = ''; }
+  }
+
+  // ─── Export Calls ───────────────────────────────────
+  function exportCalls(format) {
+    const agentId = document.getElementById('callsAgentSelect').value;
+    if (!agentId) { toast('Select an agent first', 'error'); return; }
+
+    const url = `/api/agents/${agentId}/calls/export?format=${format}`;
+
+    if (format === 'csv') {
+      // Direct download
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `calls-export.${format}`;
+      a.click();
+      toast('Exporting calls as CSV...', 'info');
+    } else {
+      // Open JSON in new tab
+      window.open(url, '_blank');
+      toast('Exporting calls as JSON...', 'info');
+    }
+  }
+
+  // ─── Tool Templates ─────────────────────────────────
+  let _templates = null;
+  async function openTemplatePicker() {
+    if (!document.getElementById('toolsAgentSelect').value) { toast('Select an agent first', 'error'); return; }
+    const el = document.getElementById('templateList');
+    el.innerHTML = '<div style="text-align:center;padding:1rem"><span class="spinner"></span></div>';
+    document.getElementById('templateModal').classList.add('open');
+
+    try {
+      const data = await api('/api/tool-templates');
+      _templates = data.templates;
+
+      // Group by category
+      const groups = {};
+      for (const t of _templates) {
+        if (!groups[t.category]) groups[t.category] = [];
+        groups[t.category].push(t);
+      }
+
+      el.innerHTML = Object.entries(groups).map(([cat, tools]) => `
+        <div style="margin-bottom:1.25rem">
+          <h4 style="font-size:0.78rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;margin-bottom:0.5rem">${cat}</h4>
+          ${tools.map(t => `
+            <div class="card" style="cursor:pointer;margin-bottom:0.5rem;padding:0.75rem;transition:border-color 0.2s" onclick="selectTemplate('${t.id}')" onmouseover="this.style.borderColor='var(--accent-mid)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div style="display:flex;align-items:center;gap:0.75rem">
+                <span style="font-size:1.3rem">${t.icon}</span>
+                <div style="flex:1">
+                  <div style="font-weight:600;font-size:0.88rem;color:var(--text-primary)">${t.label}</div>
+                  <div style="font-size:0.78rem;color:var(--text-secondary)">${t.description}</div>
+                </div>
+                <span style="color:var(--accent-light);font-size:0.85rem">→</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  function selectTemplate(templateId) {
+    const t = _templates.find(x => x.id === templateId);
+    if (!t) return;
+
+    closeModal('templateModal');
+    document.getElementById('templateConfigTitle').textContent = `${t.icon} ${t.label}`;
+    document.getElementById('templateConfigDesc').innerHTML = `
+      <p>${t.description}</p>
+      ${t.suggestedPrompt ? `<p style="margin-top:0.5rem;font-style:italic;color:var(--text-muted)">💡 ${t.suggestedPrompt}</p>` : ''}
+    `;
+    document.getElementById('fTemplateUrl').value = t.defaultConfig.endpointUrl;
+    document.getElementById('fTemplateAuth').value = t.defaultConfig.authType;
+    document.getElementById('fTemplateAuthVal').value = '';
+    document.getElementById('fTemplateId').value = t.id;
+
+    const examplesEl = document.getElementById('templateExamples');
+    if (t.examples && Object.keys(t.examples).length) {
+      examplesEl.innerHTML = `<strong>Example URLs:</strong><br/>` +
+        Object.entries(t.examples).map(([k, v]) => `<span style="color:var(--accent-light)">${k}:</span> <code style="font-size:0.72rem">${v}</code>`).join('<br/>');
+    } else { examplesEl.innerHTML = ''; }
+
+    document.getElementById('templateConfigModal').classList.add('open');
+  }
+
+  async function installTemplate() {
+    const agentId = document.getElementById('toolsAgentSelect').value;
+    const templateId = document.getElementById('fTemplateId').value;
+    try {
+      await api(`/api/agents/${agentId}/tools/from-template`, 'POST', {
+        templateId,
+        endpointUrl: document.getElementById('fTemplateUrl').value,
+        authType: document.getElementById('fTemplateAuth').value,
+        authValue: document.getElementById('fTemplateAuthVal').value || null,
+      });
+      toast('Integration installed!', 'success');
+      closeModal('templateConfigModal');
+      loadTools();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // ─── API Keys ───────────────────────────────────────
+  let _lastGeneratedKey = '';
+
+  async function loadApiKeys() {
+    const el = document.getElementById('apiKeysList');
+    try {
+      const data = await api('/api/keys');
+
+      if (data.keys.length === 0) {
+        el.innerHTML = '<div class="empty-state"><div class="icon">🔑</div><p>No API keys yet</p><p style="font-size:0.78rem">Generate a key to let external systems access your API.</p></div>';
+        return;
+      }
+
+      el.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Key Prefix</th><th>Scopes</th><th>Created</th><th>Last Used</th><th>Requests</th><th></th></tr></thead><tbody>' +
+        data.keys.map(k => `
+          <tr style="opacity:${k.isActive ? '1' : '0.5'}">
+            <td style="font-weight:600;color:var(--text-primary)">${k.name}</td>
+            <td><code style="font-size:0.75rem">${k.keyPrefix}</code></td>
+            <td><span class="tag tag-ready">${k.scopes.join(', ')}</span></td>
+            <td style="font-size:0.78rem">${new Date(k.createdAt).toLocaleDateString()}</td>
+            <td style="font-size:0.78rem">${k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : 'Never'}</td>
+            <td>${k.requestCount}</td>
+            <td>
+              ${k.isActive ? `<button class="btn btn-danger btn-sm btn-icon" onclick="revokeKey('${k.id}')" title="Revoke">🚫</button>` : '<span style="color:var(--danger);font-size:0.78rem">Revoked</span>'}
+            </td>
+          </tr>
+        `).join('') + '</tbody></table></div>';
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  function openApiKeyModal() {
+    document.getElementById('fKeyName').value = '';
+    document.getElementById('apiKeyModal').classList.add('open');
+  }
+
+  async function generateKey() {
+    const name = document.getElementById('fKeyName').value.trim();
+    if (!name) { toast('Enter a name for the key', 'error'); return; }
+
+    try {
+      const data = await api('/api/keys', 'POST', {
+        name,
+        scopes: [document.getElementById('fKeyScopes').value],
+      });
+      _lastGeneratedKey = data.key;
+      document.getElementById('generatedKeyDisplay').textContent = data.key;
+      closeModal('apiKeyModal');
+      document.getElementById('keyDisplayModal').classList.add('open');
+      loadApiKeys();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function revokeKey(id) {
+    if (!confirm('Revoke this API key? External systems using it will lose access.')) return;
+    try {
+      await api(`/api/keys/${id}`, 'DELETE');
+      toast('API key revoked', 'success');
+      loadApiKeys();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  function copyKey() {
+    navigator.clipboard.writeText(_lastGeneratedKey).then(() => {
+      toast('Key copied to clipboard!', 'success');
+    }).catch(() => {
+      // Fallback for non-HTTPS
+      const ta = document.createElement('textarea');
+      ta.value = _lastGeneratedKey;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('Key copied!', 'success');
+    });
+  }
+
+  // ─── Theme ───────────────────────────────────────────
+  function toggleTheme() {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('sv-theme', next);
+  }
+
+  // Init theme from storage or system preference
+  (function initTheme() {
+    const saved = localStorage.getItem('sv-theme');
+    if (saved) {
+      document.documentElement.setAttribute('data-theme', saved);
+    } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  })();
+
+  // ─── Init ───────────────────────────────────────────
+  loadDashboard();
+  initDropZone();
+</script>
+</body>
+</html>

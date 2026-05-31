@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stellar Viking — Login</title>
+  <meta name="description" content="Admin login for Stellar Viking Voice AI Platform" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root, [data-theme="dark"] {
+      --bg: #0a0118;
+      --bg-card: rgba(20, 8, 42, 0.85);
+      --text-primary: #f0e6ff;
+      --text-secondary: #a88fc5;
+      --text-muted: #6b5580;
+      --accent: #741CA8;
+      --accent-gradient: linear-gradient(135deg, #5E0593, #741CA8, #9E47C7);
+      --border: rgba(116, 28, 168, 0.25);
+      --danger: #ef4444;
+      --teal: #13A185;
+      --bg-input: rgba(30, 15, 55, 0.7);
+      --radius: 14px;
+    }
+    [data-theme="light"] {
+      --bg: #f0e8f7;
+      --bg-card: rgba(255,255,255,0.92);
+      --text-primary: #1a0a2e;
+      --text-secondary: #5a4570;
+      --text-muted: #8a7a9a;
+      --accent: #5E0593;
+      --border: rgba(94, 5, 147, 0.15);
+      --bg-input: rgba(240, 230, 252, 0.7);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Background aura */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 30%; left: 50%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(94,5,147,0.15) 0%, transparent 70%);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .login-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem;
+      width: 380px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      position: relative;
+      z-index: 1;
+      animation: slideUp 0.5s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .logo h1 {
+      font-size: 1.5rem;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .logo p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    label {
+      display: block;
+      font-weight: 500;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    input {
+      width: 100%;
+      padding: 0.7rem 0.9rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--accent-gradient);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s;
+      margin-top: 0.5rem;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(94,5,147,0.3);
+    }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .error {
+      color: var(--danger);
+      font-size: 0.8rem;
+      text-align: center;
+      margin-top: 0.75rem;
+      min-height: 1.2rem;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo">
+      <h1>⚡ Stellar Viking</h1>
+      <p>Voice AI Agent Platform — Admin</p>
+    </div>
+
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Username</label>
+        <input id="username" type="text" placeholder="admin" autocomplete="username" autofocus />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn" type="submit" id="loginBtn">Sign In</button>
+    </form>
+    <div class="error" id="error"></div>
+
+    <div class="footer">
+      Protected admin access · Stellar Viking v1.0
+    </div>
+  </div>
+
+<script>
+  // If already authenticated, redirect
+  const token = localStorage.getItem('sv-token');
+  if (token) {
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { if (d.user) window.location.href = '/admin.html'; })
+      .catch(() => {});
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const errEl = document.getElementById('error');
+    errEl.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          password: document.getElementById('password').value,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.token) {
+        localStorage.setItem('sv-token', data.token);
+        localStorage.setItem('sv-user', data.user);
+        window.location.href = '/admin.html';
+      } else {
+        errEl.textContent = data.error || 'Login failed';
+      }
+    } catch (err) {
+      errEl.textContent = 'Connection error';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  }
+
+  // Theme
+  const saved = localStorage.getItem('sv-theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+</script>
+</body>
+</html>
