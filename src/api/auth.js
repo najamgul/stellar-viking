@@ -47,6 +47,14 @@ function verifyToken(token) {
   }
 }
 
+/** Constant-time string compare (avoids timing side-channel on login). */
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const ha = crypto.createHash('sha256').update(a).digest();
+  const hb = crypto.createHash('sha256').update(b).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
+
 /**
  * Login handler — POST /api/auth/login
  */
@@ -60,7 +68,7 @@ export function registerAuth(app) {
       return { token: createToken('admin'), user: 'admin' };
     }
 
-    if (username === config.adminUser && password === config.adminPass) {
+    if (safeEqual(username, config.adminUser) && safeEqual(password, config.adminPass)) {
       logger.info({ user: username }, '🔐 Admin login successful');
       return { token: createToken(username), user: username };
     }
@@ -93,9 +101,12 @@ export function registerAuthGuard(app) {
     const path = request.url.split('?')[0];
 
     // Public endpoints — always accessible
+    // (/webhook/whatsapp is protected by Meta signature validation,
+    //  /webhook/incoming by Twilio; /api/leads/capture is the public
+    //  landing-page form endpoint.)
     const publicPaths = [
       '/api/auth/login',
-      '/api/export-pdf',
+      '/api/leads/capture',
       '/webhook/',
       '/media-stream',
       '/test-call',
@@ -121,6 +132,13 @@ export function registerAuthGuard(app) {
       // Check JWT first (admin dashboard)
       const user = extractUser(request);
       if (user) return;
+
+      // Key management is admin-only: an API key must never be able to
+      // mint, list, or revoke keys (privilege escalation).
+      if (path.startsWith('/api/keys')) {
+        reply.code(401);
+        return reply.send({ error: 'Admin authentication required for key management.' });
+      }
 
       // Check API key (external systems: sv_live_xxx)
       const apiKeyValid = await checkApiKey(request);

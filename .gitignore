@@ -3,3 +3,4 @@ data/
 *.tar.gz
 .env
 .env.local
+landing/dist/

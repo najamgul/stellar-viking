@@ -22,12 +22,18 @@ const config = {
   inworldBasicAuth: process.env.INWORLD_BASIC_AUTH,
   inworldTtsApiKey: process.env.INWORLD_TTS_API_KEY,  // TTS/STT/LLM Router API key
 
-  // Sarvam AI
-  sarvamApiKey: process.env.SARVAM_API_KEY,
-
   // Twilio
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
+
+  // WhatsApp (Meta Cloud API)
+  whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN,        // permanent system-user token
+  whatsappVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN,        // your own string, echoed in webhook setup
+  whatsappAppSecret: process.env.WHATSAPP_APP_SECRET,            // Meta app secret, for signature validation
+  whatsappApiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
+  whatsappFollowupTemplate: process.env.WHATSAPP_FOLLOWUP_TEMPLATE || null,  // approved template name for >24h re-engagement
+  whatsappTemplateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en',
+  chatModel: process.env.CHAT_MODEL || 'gemini-2.0-flash',
 
   // Pinecone
   pineconeApiKey: process.env.PINECONE_API_KEY,
@@ -54,17 +60,23 @@ const config = {
   }
 };
 
-// Validate required keys (gemini only needed for non-pipeline modes)
-if (config.aiProvider !== 'pipeline' && !config.geminiApiKey) {
-  console.warn('⚠️  Missing required config: geminiApiKey — some features will be unavailable');
+// Validate required keys
+// (chat + embeddings + summaries always need Gemini; pipeline voice mode uses Inworld)
+if (!config.geminiApiKey) {
+  console.warn('⚠️  Missing required config: geminiApiKey — chat engine, knowledge base, and Gemini voice will be unavailable');
 }
-if (config.aiProvider === 'pipeline' && !config.sarvamApiKey) {
-  console.warn('⚠️  Missing required config: sarvamApiKey — pipeline STT/TTS unavailable');
+if (config.aiProvider === 'pipeline' && !config.inworldTtsApiKey) {
+  console.warn('⚠️  Missing required config: inworldTtsApiKey — pipeline voice mode unavailable');
 }
 
-// Log auth status
+// Auth: fail closed in production. Running with an open admin API in
+// production leaks every lead and conversation to the internet.
 if (config.adminUser) {
   console.log('🔐 Admin authentication ENABLED');
+} else if (config.nodeEnv === 'production' && process.env.ALLOW_NO_AUTH !== 'true') {
+  console.error('❌ ADMIN_USER/ADMIN_PASS not set in production. Refusing to start.');
+  console.error('   Set admin credentials, or set ALLOW_NO_AUTH=true to explicitly run open (NOT recommended).');
+  process.exit(1);
 } else {
   console.log('🔓 Admin authentication DISABLED (set ADMIN_USER + ADMIN_PASS to enable)');
 }

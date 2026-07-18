@@ -60,8 +60,8 @@ export function registerMediaStream(app) {
                   agent,
                   callerNumber,
                   twilioStreamSid: streamSid,
+                  twilioCallSid: data.start.callSid,
                   twilioWs: socket,
-                  // retriever will be added when KB module is built
                 });
               } catch (err) {
                 logger.error({ error: err.message }, 'Failed to create session');

@@ -11,7 +11,7 @@ import { getActiveSessionCount } from '../engine/session-manager.js';
 import { indexDocument, removeDocument, getKnowledgeStats, query as kbQuery } from '../knowledge/retriever.js';
 import { generateCallSummary } from '../engine/call-summary.js';
 import { TOOL_TEMPLATES, getTemplatesByCategory } from './tool-templates.js';
-import { generateApiKey, listApiKeys, revokeApiKey, deleteApiKey } from './api-keys.js';
+import { generateApiKey, listApiKeys, revokeApiKey } from './api-keys.js';
 
 /**
  * Register all API routes.

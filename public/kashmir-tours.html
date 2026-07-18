@@ -966,6 +966,50 @@
             box-shadow: 0 6px 24px rgba(201,164,78,0.4);
         }
 
+        .booking-success {
+            text-align: center;
+            padding: 28px 8px;
+        }
+
+        .booking-success-icon {
+            font-size: 2.2rem;
+            color: var(--clr-primary);
+            margin-bottom: 14px;
+        }
+
+        .booking-success h4 {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            color: var(--clr-white);
+            margin-bottom: 12px;
+        }
+
+        .booking-success p {
+            color: var(--clr-text-muted);
+            font-size: 0.95rem;
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+
+        .whatsapp-btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border-radius: var(--radius-sm);
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: center;
+            text-decoration: none;
+            background: linear-gradient(135deg, var(--clr-accent), var(--clr-accent-deep));
+            color: var(--clr-bg-dark);
+            transition: all var(--transition);
+        }
+
+        .whatsapp-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(62,198,193,0.4);
+        }
+
         /* ========== FOOTER ========== */
         .footer {
             position: relative;
@@ -1116,6 +1160,12 @@
         .toast.show {
             transform: translateY(0);
             opacity: 1;
+        }
+
+        .toast.error {
+            background: rgba(224,92,92,0.15);
+            border-color: rgba(224,92,92,0.35);
+            color: #e08c8c;
         }
 
         /* ========== BACK TO TOP ========== */
@@ -1781,31 +1831,89 @@
         });
 
         // ========== BOOKING FORM ==========
-        function showToast(message) {
+        function showToast(message, isError = false) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
+            toast.classList.toggle('error', isError);
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 4000);
         }
 
-        function handleBooking(e) {
+        function showBookingSuccess(whatsappLink) {
+            const form = document.getElementById('bookingForm');
+            const success = document.createElement('div');
+            success.className = 'booking-success';
+
+            const icon = document.createElement('div');
+            icon.className = 'booking-success-icon';
+            icon.textContent = '✦';
+
+            const heading = document.createElement('h4');
+            heading.textContent = 'Inquiry Received';
+
+            const copy = document.createElement('p');
+            success.append(icon, heading, copy);
+
+            if (whatsappLink) {
+                copy.textContent = "We've received your inquiry — tap below and send the pre-filled message so our travel assistant can help you instantly.";
+                const link = document.createElement('a');
+                link.className = 'whatsapp-btn';
+                link.href = whatsappLink;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.textContent = 'Continue on WhatsApp →';
+                success.appendChild(link);
+            } else {
+                copy.textContent = 'Thank you, our team will contact you shortly.';
+            }
+
+            form.innerHTML = '';
+            form.appendChild(success);
+        }
+
+        async function handleBooking(e) {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
+            if (btn.disabled) return;
+
+            const payload = {
+                name: document.getElementById('fullName').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                message: document.getElementById('message').value.trim(),
+                metadata: {
+                    travellers: document.getElementById('travelers').value,
+                    travelDate: document.getElementById('travelDate').value,
+                    package: document.getElementById('package').value,
+                    source: 'kashmir-tours-landing'
+                }
+            };
+
+            if (!payload.name || !payload.phone) {
+                showToast('Please provide your name and WhatsApp number.', true);
+                return;
+            }
+
+            const originalLabel = btn.textContent;
             btn.textContent = 'Sending...';
             btn.disabled = true;
 
-            setTimeout(() => {
-                btn.textContent = '✓ Quote Requested!';
-                btn.style.background = 'linear-gradient(135deg, #3ec6c1, #1a8a86)';
-                showToast('🎉 Thank you! Our team will contact you within 2 hours with your custom quote.');
-
-                setTimeout(() => {
-                    btn.textContent = 'Get My Custom Quote →';
-                    btn.style.background = '';
-                    btn.disabled = false;
-                    document.getElementById('bookingForm').reset();
-                }, 3000);
-            }, 1500);
+            try {
+                const res = await fetch('/api/leads/capture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || data.error || !data.ok) {
+                    throw new Error(data.error || 'Something went wrong. Please try again.');
+                }
+                showBookingSuccess(data.whatsappLink || null);
+            } catch (err) {
+                showToast(err && err.message ? err.message : "We couldn't send your inquiry. Please try again.", true);
+                btn.textContent = originalLabel;
+                btn.disabled = false;
+            }
         }
 
         // ========== SMOOTH SCROLL for anchor links ==========

@@ -202,9 +202,10 @@ export class PipelineLiveSession {
       type: 'session.update',
       session: {
         type: 'realtime',
-        model: 'google-ai-studio/gemini-2.5-flash',
+        model: 'google-ai-studio/gemini-2.0-flash',   // 2.0-flash is ~3x faster than 2.5-flash for voice
         instructions: this.options.systemPrompt || 'You are a helpful voice agent.',
-        output_modalities: ['audio', 'text'],
+        tools: this._convertTools(this.options.tools),  // KB, transfer, end_call + custom tools
+        output_modalities: ['audio'],                   // Audio only — skip text generation for lower latency
         temperature: this._temperature,
         input_audio_format: 'pcm16',
         output_audio_format: 'pcm16',
@@ -212,8 +213,12 @@ export class PipelineLiveSession {
           input: {
             format: 'pcm16',
             sample_rate: 24000,
+            transcription: {
+              model: 'assemblyai/u3-rt-pro',            // Fast real-time STT
+            },
             turn_detection: {
               type: 'semantic_vad',
+              eagerness: 'high',                        // Faster turn-end detection
               create_response: true,
               interrupt_response: true,
             },
@@ -222,7 +227,7 @@ export class PipelineLiveSession {
             format: 'pcm16',
             sample_rate: 24000,
             voice: this._voiceId,
-            model: 'inworld-tts-1.5-mini',
+            model: 'inworld-tts-2',                     // Latest TTS model
             speed: this._speed,
           },
         },

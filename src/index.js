@@ -30,6 +30,8 @@ import { registerAdminClient } from './api/admin-events.js';
 import { registerAuth, registerAuthGuard } from './api/auth.js';
 import { registerMiddleware } from './api/middleware.js';
 import { registerPdfExport, closePdfBrowser } from './api/pdf-export.js';
+import { registerChatRoutes } from './api/chat-routes.js';
+import { startScheduler } from './scheduler/job-runner.js';
 import * as db from './storage/database.js';
 import { getActiveSessionCount } from './engine/session-manager.js';
 
@@ -79,7 +81,8 @@ async function start() {
   registerMediaStream(app);            // /media-stream (Twilio WebSocket)
   registerTestCall(app);               // /test-call (Browser WebSocket)
   registerOutboundCall(app);           // /api/call-me (outbound)
-  registerPdfExport(app);               // /api/export-pdf (Puppeteer PDF)
+  registerPdfExport(app);              // /api/export-pdf (Puppeteer PDF)
+  registerChatRoutes(app);             // /webhook/whatsapp + chat dashboard API
 
   // ─── Admin Live Monitor WebSocket ───────────────────────
   app.get('/admin-ws', { websocket: true }, (socket) => {
@@ -174,20 +177,25 @@ async function start() {
   // ─── Start ───────────────────────────────────────────────
   try {
     await app.listen({ port: config.port, host: config.host });
+    startScheduler();                  // follow-up job runner
+    const voiceEngine = { pipeline: 'Inworld Realtime S2S', inworld: 'Inworld AI Realtime', gemini: 'Gemini Live API' }[config.aiProvider] || 'Gemini Live API';
+    const voiceModel = config.aiProvider === 'pipeline' ? 'gemini-2.0-flash + inworld-tts-2'
+      : config.aiProvider === 'inworld' ? 'inworld-realtime-v1'
+      : config.geminiModel;
     logger.info({}, `
-  ┌──────────────────────────────────────────────────┐
-  │                                                  │
-  │   Stellar Viking — Voice AI Agent Platform       │
-  │                                                  │
-  │   Server:  http://${config.host}:${config.port}              │
-  │   Admin:   http://localhost:${config.port}/admin.html │
-  │   Health:  http://localhost:${config.port}/health      │
-  │   Engine:  ${{'pipeline':'Inworld Realtime S2S','inworld':'Inworld AI Realtime','gemini':'Gemini Live API'}[config.aiProvider] || 'Gemini Live API'}         │
-  │   Model:   ${config.aiProvider === 'pipeline' ? 'gemini-2.5-flash + tts-1.5' : config.aiProvider === 'inworld' ? 'inworld-realtime-v1' : config.geminiModel}       │
-  │   Storage: File-based (./data)                   │
-  │   Auth:    ${config.adminUser ? 'ENABLED' : 'DISABLED (dev mode)'}                    │
-  │                                                  │
-  └──────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │   Stellar Viking — Voice + WhatsApp AI Agent Platform    │
+  │                                                          │
+  │   Server:    http://${config.host}:${config.port}                      │
+  │   Admin:     http://localhost:${config.port}/admin.html         │
+  │   Health:    http://localhost:${config.port}/health             │
+  │   Voice:     ${voiceEngine} (${voiceModel})
+  │   Chat:      ${config.chatModel} ${config.whatsappAccessToken ? '(WhatsApp connected)' : '(WhatsApp NOT configured)'}
+  │   Storage:   File-based (./data)                         │
+  │   Auth:      ${config.adminUser ? 'ENABLED' : 'DISABLED (dev mode)'}
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
     `);
   } catch (err) {
     logger.error({ error: err.message }, 'Failed to start server');

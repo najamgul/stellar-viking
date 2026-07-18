@@ -20,6 +20,7 @@ import { executeTool } from './tool-dispatcher.js';
 import { mulawToPcm16k, mulawToPcm24k, pcm24kToMulaw } from '../telephony/audio-transcoder.js';
 
 const AI_PROVIDER = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
+import config from '../config.js';
 import * as db from '../storage/database.js';
 import { broadcast } from '../api/admin-events.js';
 import { generateCallSummary } from './call-summary.js';
@@ -58,6 +59,7 @@ class SessionManager {
     this.agent = options.agent;
     this.callerNumber = options.callerNumber;
     this.twilioStreamSid = options.twilioStreamSid;
+    this.twilioCallSid = options.twilioCallSid || null;
     this.twilioWs = options.twilioWs;
     this.retriever = options.retriever || null;
 
@@ -66,6 +68,7 @@ class SessionManager {
     this.transcript = [];
     this.startTime = Date.now();
     this.isEnding = false;
+    this.finalStatus = 'completed';   // overridden to 'transferred' on transfer
   }
 
   async start() {
@@ -274,9 +277,26 @@ class SessionManager {
 
   // ─── Internal handlers ───────────────────────────────────────────
 
-  _handleTransfer(number, reason) {
+  async _handleTransfer(number, reason) {
     this.log.info({ number, reason }, '🔀 Transferring call');
-    // TODO: Send Twilio TwiML to redirect call
+    this.finalStatus = 'transferred';
+
+    if (this.twilioCallSid && config.twilioAccountSid && config.twilioAuthToken) {
+      try {
+        const twilio = (await import('twilio')).default;
+        const client = twilio(config.twilioAccountSid, config.twilioAuthToken);
+        await client.calls(this.twilioCallSid).update({
+          twiml: `<Response><Say>Connecting you now.</Say><Dial>${number}</Dial></Response>`,
+        });
+        this.log.info({ number }, '✅ Twilio call redirected');
+        // Twilio tears down the media stream; _cleanup runs via handleStreamEnd
+        return;
+      } catch (err) {
+        this.log.error({ error: err.message }, 'Twilio transfer failed — ending call');
+      }
+    } else {
+      this.log.warn('Cannot transfer: missing Twilio CallSid or credentials — ending call');
+    }
     this._cleanup();
   }
 
@@ -301,9 +321,9 @@ class SessionManager {
       .map(t => `[${t.role}] ${t.text}`)
       .join('\n');
 
-    // Update call log
+    // Update call log (finalStatus preserves 'transferred' set by _handleTransfer)
     await db.updateCall(this.callId, {
-      status: 'completed',
+      status: this.finalStatus,
       endedAt: new Date().toISOString(),
       duration,
       transcript: fullTranscript,

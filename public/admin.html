@@ -634,6 +634,111 @@
       0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(19,161,133,0.5); }
       50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(19,161,133,0); }
     }
+    .live-event.ev-alert { background: rgba(251,117,29,0.12); color: var(--orange); }
+
+    /* ─── Chats (WhatsApp) ─────────────────────── */
+    .chat-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+    .convo-list {
+      max-height: 560px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .convo-item {
+      padding: 0.6rem 0.75rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background 0.15s;
+    }
+    .convo-item:hover { background: var(--bg-card-hover); }
+    .convo-item.active {
+      background: var(--bg-card-hover);
+      border-left-color: var(--accent-mid);
+    }
+    .convo-name { font-weight: 600; font-size: 0.85rem; color: var(--text-primary); }
+    .convo-meta {
+      display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+      margin-top: 0.25rem; font-size: 0.7rem; color: var(--text-muted);
+    }
+    .mode-badge {
+      display: inline-block; padding: 1px 8px; border-radius: 20px;
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .mode-ai { background: rgba(19,161,133,0.15); color: var(--teal); }
+    .mode-human { background: rgba(251,117,29,0.15); color: var(--orange); }
+    .mode-paused { background: rgba(146,109,168,0.2); color: var(--accent-light); }
+    .lead-chip {
+      display: inline-block; padding: 1px 8px; border-radius: 20px;
+      font-size: 0.62rem; font-weight: 600;
+    }
+    .chip-new { background: rgba(146,109,168,0.2); color: var(--accent-light); }
+    .chip-engaged { background: rgba(101,160,149,0.2); color: var(--teal-light); }
+    .chip-qualified { background: rgba(19,161,133,0.15); color: var(--teal); }
+    .chip-follow_up_scheduled { background: rgba(220,218,0,0.12); color: var(--yellow); }
+    .chip-callback_requested { background: rgba(251,117,29,0.15); color: var(--orange); }
+    .chip-closed { background: var(--bg-input); color: var(--text-muted); }
+    .chip-not_interested { background: rgba(176,69,0,0.15); color: var(--danger); }
+    .chat-transcript {
+      min-height: 320px; max-height: 480px; overflow-y: auto;
+      background: var(--bg-input);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .chat-bubble-row { display: flex; }
+    .chat-bubble-row.row-out { justify-content: flex-end; }
+    .chat-bubble {
+      max-width: 75%;
+      padding: 0.5rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .bubble-in {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-bottom-left-radius: 4px;
+    }
+    .bubble-out {
+      background: var(--accent-gradient);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .bubble-meta { font-size: 0.62rem; opacity: 0.7; margin-top: 0.25rem; text-align: right; }
+    .window-dot {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; margin-right: 4px;
+    }
+    .window-open { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+    .window-closed { background: var(--text-muted); }
+    .chat-input-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .chat-input-row input {
+      flex: 1; padding: 0.65rem 0.9rem;
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-family: 'Inter', sans-serif; font-size: 0.85rem;
+    }
+    .chat-input-row input:focus { outline: none; border-color: var(--accent-mid); }
+    .chat-input-row input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ─── Leads ────────────────────────────────── */
+    .card.callback-card { border-color: var(--orange); box-shadow: 0 0 15px rgba(251,117,29,0.12); }
+    .lead-note {
+      background: var(--bg-input);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.4rem;
+    }
+    .lead-note .note-by { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.2rem; }
 
     /* ─── Search ─────────────────────────────────── */
     .search-bar {
@@ -677,6 +782,12 @@
       </button>
       <button class="nav-item" onclick="showPage('calls')">
         <span class="icon">📞</span> Call Logs
+      </button>
+      <button class="nav-item" onclick="showPage('chats')">
+        <span class="icon">💬</span> Chats
+      </button>
+      <button class="nav-item" onclick="showPage('leads')">
+        <span class="icon">🎯</span> Leads
       </button>
       <button class="nav-item" onclick="showPage('monitor')">
         <span class="icon">🔴</span> Live Monitor
@@ -805,6 +916,63 @@
         </div>
         <div class="search-bar"><input id="callSearch" placeholder="Search by caller number or status..." oninput="filterCalls()" /></div>
         <div id="callsList"></div>
+      </div>
+
+      <!-- ─── Chats Page ───── -->
+      <div class="page" id="page-chats">
+        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem">
+          <div class="form-group" style="flex:1;margin:0">
+            <select id="chatsAgentSelect" onchange="loadConversations(true)" style="width:100%">
+              <option value="">— Select an agent —</option>
+            </select>
+          </div>
+        </div>
+        <div class="chat-layout">
+          <div class="card" style="margin-bottom:0;padding:0.75rem">
+            <div class="convo-list" id="convoList">
+              <div class="empty-state" style="padding:2rem"><div class="icon">💬</div><p>Select an agent to view conversations</p></div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:0;padding:1rem">
+            <div id="chatHeader"></div>
+            <div class="chat-transcript" id="chatTranscript">
+              <div class="empty-state" style="padding:2rem"><div class="icon">💬</div><p>Select a conversation to view the transcript</p></div>
+            </div>
+            <div class="chat-input-row">
+              <input id="chatInput" placeholder="Type a reply..." disabled onkeydown="if(event.key==='Enter')sendChatMessage()" />
+              <button class="btn btn-primary" id="btnChatSend" onclick="sendChatMessage()" disabled>Send</button>
+            </div>
+            <div id="chatInputHint" style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Leads Page ───── -->
+      <div class="page" id="page-leads">
+        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem">
+          <div class="form-group" style="flex:1;margin:0">
+            <select id="leadsAgentSelect" onchange="loadLeadsPage()" style="width:100%">
+              <option value="">— Select an agent —</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <select id="leadStatusFilter" onchange="loadLeadsPage()">
+              <option value="">All statuses</option>
+              <option value="new">New</option>
+              <option value="engaged">Engaged</option>
+              <option value="qualified">Qualified</option>
+              <option value="follow_up_scheduled">Follow-up Scheduled</option>
+              <option value="callback_requested">Callback Requested</option>
+              <option value="closed">Closed</option>
+              <option value="not_interested">Not Interested</option>
+            </select>
+          </div>
+        </div>
+        <div class="stats-grid" id="leadStats" style="display:none"></div>
+        <div id="callbackQueue"></div>
+        <div id="leadsList">
+          <div class="empty-state"><div class="icon">🎯</div><p>Select an agent to view its leads</p></div>
+        </div>
       </div>
 
       <!-- ─── Live Monitor Page ── -->
@@ -968,6 +1136,10 @@
       <div class="form-group"><label>Greeting</label><textarea id="fGreeting" rows="2" placeholder="Hi! Thanks for calling...">Hi! Thanks for calling. How can I help you today?</textarea></div>
       <div class="form-group"><label>Phone Number (Twilio)</label><input id="fPhone" placeholder="+17754761653" /></div>
       <div class="form-group"><label>Transfer Number (optional)</label><input id="fTransfer" placeholder="+91..." /></div>
+      <div class="form-row">
+        <div class="form-group"><label>WhatsApp Phone Number ID (optional)</label><input id="fWhatsappPhoneId" placeholder="123456789012345" /></div>
+        <div class="form-group"><label>WhatsApp Number (for wa.me links, e.g. +923001234567)</label><input id="fWhatsappNumber" placeholder="+923001234567" /></div>
+      </div>
       <div class="form-group">
         <label>Status</label>
         <select id="fStatus"><option value="active">Active</option><option value="draft">Draft</option></select>
@@ -1125,6 +1297,48 @@
     </div>
   </div>
 
+  <!-- ─── Lead Modal ─────── -->
+  <div class="modal-overlay" id="leadModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="leadModalTitle">Lead</h3>
+        <button class="modal-close" onclick="closeModal('leadModal')">&times;</button>
+      </div>
+
+      <input type="hidden" id="leadEditId" />
+      <div id="leadModalInfo" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:1rem"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Status</label>
+          <select id="fLeadStatus">
+            <option value="new">New</option>
+            <option value="engaged">Engaged</option>
+            <option value="qualified">Qualified</option>
+            <option value="follow_up_scheduled">Follow-up Scheduled</option>
+            <option value="callback_requested">Callback Requested</option>
+            <option value="closed">Closed</option>
+            <option value="not_interested">Not Interested</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sentiment</label>
+          <select id="fLeadSentiment">
+            <option value="positive">🙂 Positive</option>
+            <option value="neutral">😐 Neutral</option>
+            <option value="negative">🙁 Negative</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Add Note (optional)</label><textarea id="fLeadNote" rows="2" placeholder="Add a note about this lead..."></textarea></div>
+      <div id="leadNotesList"></div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('leadModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveLead()">Save Lead</button>
+      </div>
+    </div>
+  </div>
+
 <script>
   const API = '';  // Same origin
   const authToken = localStorage.getItem('sv-token');
@@ -1149,7 +1363,7 @@
     document.getElementById(`page-${page}`).classList.add('active');
     document.querySelector(`.nav-item[onclick*="${page}"]`).classList.add('active');
 
-    const titles = { dashboard:'Dashboard', agents:'Agents', knowledge:'Knowledge Base', tools:'Tools', calls:'Call Logs', monitor:'Live Monitor', dialer:'Test Call', apikeys:'API Keys' };
+    const titles = { dashboard:'Dashboard', agents:'Agents', knowledge:'Knowledge Base', tools:'Tools', calls:'Call Logs', chats:'Chats', leads:'Leads', monitor:'Live Monitor', dialer:'Test Call', apikeys:'API Keys' };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
     if (page === 'dashboard') loadDashboard();
@@ -1157,7 +1371,9 @@
     if (page === 'knowledge') { populateAgentDropdowns(); loadKnowledgeBase(); }
     if (page === 'tools') { populateAgentDropdowns(); loadTools(); }
     if (page === 'calls') { populateAgentDropdowns(); loadCalls(); }
-    if (page === 'monitor') connectLiveMonitor();
+    if (page === 'chats') { populateAgentDropdowns(); loadConversations(); }
+    if (page === 'leads') { populateAgentDropdowns(); loadLeadsPage(); }
+    if (page === 'monitor') connectAdminWs();
     if (page === 'dialer') populateAgentDropdowns();
     if (page === 'apikeys') loadApiKeys();
   }
@@ -1174,6 +1390,11 @@
     if (res.status === 401) { window.location.href = '/login.html'; return; }
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || err.details || res.statusText); }
     return res.json();
+  }
+
+  // ─── HTML Escaping ──────────────────────────────────
+  function esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   // ─── Toast ──────────────────────────────────────────
@@ -1217,11 +1438,11 @@
       list.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Company</th><th>Voice</th><th>Phone</th><th>Status</th></tr></thead><tbody>' +
         agentsData.agents.map(a => `
           <tr style="cursor:pointer" onclick="showPage('agents')">
-            <td style="color:var(--text-primary);font-weight:600">${a.name}</td>
-            <td>${a.companyName || '—'}</td>
-            <td>${a.voice}</td>
-            <td style="font-family:monospace;font-size:0.78rem">${a.phoneNumber || '—'}</td>
-            <td><span class="tag tag-${a.status}">${a.status}</span></td>
+            <td style="color:var(--text-primary);font-weight:600">${esc(a.name)}</td>
+            <td>${esc(a.companyName) || '—'}</td>
+            <td>${esc(a.voice)}</td>
+            <td style="font-family:monospace;font-size:0.78rem">${esc(a.phoneNumber) || '—'}</td>
+            <td><span class="tag tag-${esc(a.status)}">${esc(a.status)}</span></td>
           </tr>
         `).join('') + '</tbody></table></div>';
     } catch (e) { toast(e.message, 'error'); }
@@ -1314,6 +1535,8 @@
     document.getElementById('fGreeting').value = agent?.greeting || 'Hi! Thanks for calling. How can I help you today?';
     document.getElementById('fPhone').value = agent?.phoneNumber || '';
     document.getElementById('fTransfer').value = agent?.transferNumber || '';
+    document.getElementById('fWhatsappPhoneId').value = agent?.whatsappPhoneNumberId || '';
+    document.getElementById('fWhatsappNumber').value = agent?.whatsappNumber || '';
     document.getElementById('fStatus').value = agent?.status || 'active';
     document.getElementById('agentModal').classList.add('open');
   }
@@ -1338,6 +1561,8 @@
       greeting: document.getElementById('fGreeting').value,
       phoneNumber: document.getElementById('fPhone').value || null,
       transferNumber: document.getElementById('fTransfer').value || null,
+      whatsappPhoneNumberId: document.getElementById('fWhatsappPhoneId').value || null,
+      whatsappNumber: document.getElementById('fWhatsappNumber').value || null,
       status: document.getElementById('fStatus').value,
     };
 
@@ -1527,10 +1752,10 @@
   async function populateAgentDropdowns() {
     try {
       const data = await api('/api/agents');
-      const options = data.agents.map(a => `<option value="${a.id}">${a.name} (${a.companyName || 'No company'})</option>`).join('');
+      const options = data.agents.map(a => `<option value="${esc(a.id)}">${esc(a.name)} (${esc(a.companyName) || 'No company'})</option>`).join('');
       const defaultOpt = '<option value="">— Select an agent —</option>';
 
-      ['kbAgentSelect','toolsAgentSelect','callsAgentSelect','dialerAgent'].forEach(id => {
+      ['kbAgentSelect','toolsAgentSelect','callsAgentSelect','chatsAgentSelect','leadsAgentSelect','dialerAgent'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
           const prev = el.value;
@@ -1553,12 +1778,12 @@
 
       document.getElementById('callDetailContent').innerHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.82rem;margin-bottom:1.5rem">
-          <div><strong style="color:var(--text-muted)">Caller:</strong> ${c.callerNumber}</div>
-          <div><strong style="color:var(--text-muted)">Direction:</strong> ${c.direction}</div>
-          <div><strong style="color:var(--text-muted)">Status:</strong> <span class="tag tag-${c.status === 'completed' ? 'active' : 'draft'}">${c.status}</span></div>
-          <div><strong style="color:var(--text-muted)">Duration:</strong> ${c.duration || '—'}s</div>
+          <div><strong style="color:var(--text-muted)">Caller:</strong> ${esc(c.callerNumber)}</div>
+          <div><strong style="color:var(--text-muted)">Direction:</strong> ${esc(c.direction)}</div>
+          <div><strong style="color:var(--text-muted)">Status:</strong> <span class="tag tag-${c.status === 'completed' ? 'active' : 'draft'}">${esc(c.status)}</span></div>
+          <div><strong style="color:var(--text-muted)">Duration:</strong> ${esc(c.duration) || '—'}s</div>
           <div><strong style="color:var(--text-muted)">Started:</strong> ${new Date(c.startedAt).toLocaleString()}</div>
-          <div><strong style="color:var(--text-muted)">Tools Used:</strong> ${(c.toolsUsed || []).join(', ') || 'None'}</div>
+          <div><strong style="color:var(--text-muted)">Tools Used:</strong> ${esc((c.toolsUsed || []).join(', ')) || 'None'}</div>
         </div>
 
         ${hasSummary ? `
@@ -1566,16 +1791,16 @@
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
             <span class="card-title" style="margin:0">📋 AI Summary</span>
             <div style="display:flex;gap:0.5rem;align-items:center">
-              <span style="font-size:0.72rem;padding:0.2rem 0.5rem;border-radius:6px;background:${sentimentColor}20;color:${sentimentColor};font-weight:600">${s.sentiment || '—'}</span>
-              <span class="tag tag-${s.resolution === 'resolved' ? 'active' : 'draft'}" style="font-size:0.7rem">${s.resolution || '—'}</span>
+              <span style="font-size:0.72rem;padding:0.2rem 0.5rem;border-radius:6px;background:${sentimentColor}20;color:${sentimentColor};font-weight:600">${esc(s.sentiment) || '—'}</span>
+              <span class="tag tag-${s.resolution === 'resolved' ? 'active' : 'draft'}" style="font-size:0.7rem">${esc(s.resolution) || '—'}</span>
             </div>
           </div>
-          <p style="font-size:0.85rem;color:var(--text-primary);margin-bottom:0.5rem"><strong>${s.topic}</strong></p>
+          <p style="font-size:0.85rem;color:var(--text-primary);margin-bottom:0.5rem"><strong>${esc(s.topic)}</strong></p>
           ${s.actionItems && s.actionItems.length > 0 ? `
             <div style="margin-top:0.5rem">
               <span style="font-size:0.75rem;font-weight:600;color:var(--text-muted)">ACTION ITEMS:</span>
               <ul style="margin:0.3rem 0 0 1rem;font-size:0.8rem;color:var(--text-secondary)">
-                ${s.actionItems.map(a => `<li>${a}</li>`).join('')}
+                ${s.actionItems.map(a => `<li>${esc(a)}</li>`).join('')}
               </ul>
             </div>
           ` : ''}
@@ -1586,7 +1811,7 @@
         </div>
         `}
 
-        ${c.transcript ? `<div class="card-title" style="margin-bottom:0.5rem">💬 Transcript</div><div class="transcript-box">${c.transcript}</div>` : '<p style="color:var(--text-muted);font-size:0.82rem">No transcript available</p>'}
+        ${c.transcript ? `<div class="card-title" style="margin-bottom:0.5rem">💬 Transcript</div><div class="transcript-box">${esc(c.transcript)}</div>` : '<p style="color:var(--text-muted);font-size:0.82rem">No transcript available</p>'}
       `;
       document.getElementById('callModal').classList.add('open');
     } catch (e) { toast(e.message, 'error'); }
@@ -1653,23 +1878,24 @@
       <div class="card" style="cursor:default">
         <div class="card-header">
           <div>
-            <span style="font-weight:700;font-size:1rem">${a.name}</span>
-            <span class="tag tag-${a.status}" style="margin-left:0.5rem">${a.status}</span>
+            <span style="font-weight:700;font-size:1rem">${esc(a.name)}</span>
+            <span class="tag tag-${esc(a.status)}" style="margin-left:0.5rem">${esc(a.status)}</span>
+            ${a.whatsappPhoneNumberId ? '<span class="tag tag-active" style="margin-left:0.5rem">💬 WhatsApp</span>' : ''}
           </div>
           <div style="display:flex;gap:0.5rem">
-            <button class="btn btn-secondary btn-sm" onclick="cloneAgent('${a.id}')" title="Clone">📋</button>
-            <button class="btn btn-secondary btn-sm" onclick="editAgent('${a.id}')">✏️ Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">🗑</button>
+            <button class="btn btn-secondary btn-sm" onclick="cloneAgent('${esc(a.id)}')" title="Clone">📋</button>
+            <button class="btn btn-secondary btn-sm" onclick="editAgent('${esc(a.id)}')">✏️ Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteAgent('${esc(a.id)}')">🗑</button>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.82rem;color:var(--text-secondary)">
-          <div>🏢 <strong>${a.companyName || '—'}</strong></div>
-          <div>🎤 ${a.voice}</div>
-          <div>📞 ${a.phoneNumber || 'No phone'}</div>
-          <div>🌐 ${a.language}</div>
+          <div>🏢 <strong>${esc(a.companyName) || '—'}</strong></div>
+          <div>🎤 ${esc(a.voice)}</div>
+          <div>📞 ${esc(a.phoneNumber) || 'No phone'}</div>
+          <div>🌐 ${esc(a.language)}</div>
         </div>
         <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--text-muted)">
-          💬 "${a.greeting}"
+          💬 "${esc(a.greeting)}"
         </div>
       </div>
     `).join('');
@@ -1697,11 +1923,11 @@
       calls.map(c => `
         <tr>
           <td style="font-size:0.78rem">${new Date(c.startedAt).toLocaleString()}</td>
-          <td style="font-family:monospace;font-size:0.78rem">${c.callerNumber}</td>
-          <td>${c.direction === 'inbound' ? '📥' : '📤'} ${c.direction}</td>
-          <td>${c.duration || '—'}</td>
-          <td><span class="tag tag-${c.status === 'completed' ? 'active' : 'draft'}">${c.status}</span></td>
-          <td><button class="btn btn-secondary btn-sm" onclick="viewCall('${c.id}')">View</button></td>
+          <td style="font-family:monospace;font-size:0.78rem">${esc(c.callerNumber)}</td>
+          <td>${c.direction === 'inbound' ? '📥' : '📤'} ${esc(c.direction)}</td>
+          <td>${esc(c.duration) || '—'}</td>
+          <td><span class="tag tag-${c.status === 'completed' ? 'active' : 'draft'}">${esc(c.status)}</span></td>
+          <td><button class="btn btn-secondary btn-sm" onclick="viewCall('${esc(c.id)}')">View</button></td>
         </tr>
       `).join('') + '</tbody></table></div>';
   }
@@ -1766,29 +1992,28 @@
     document.getElementById('fileInput').value = '';
   }
 
-  // ─── Live Monitor WebSocket ─────────────────────────
+  // ─── Admin WebSocket (app-lifetime) ─────────────────
   let adminWs = null;
   let liveEventCount = 0;
+  let _wsReconnectDelay = 3000;
 
-  function connectLiveMonitor() {
-    if (adminWs && adminWs.readyState === WebSocket.OPEN) return;
+  function connectAdminWs() {
+    if (adminWs && (adminWs.readyState === WebSocket.OPEN || adminWs.readyState === WebSocket.CONNECTING)) return;
 
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     adminWs = new WebSocket(`${protocol}//${location.host}/admin-ws`);
 
     adminWs.onopen = () => {
-      document.getElementById('monitorStatus').textContent = '🟢 Connected';
+      _wsReconnectDelay = 3000;
+      setMonitorStatus('🟢 Connected');
     };
 
     adminWs.onclose = () => {
-      document.getElementById('monitorStatus').textContent = '🔴 Disconnected';
+      setMonitorStatus('🔴 Disconnected — reconnecting...');
       adminWs = null;
-      // Auto-reconnect after 3s
-      setTimeout(() => {
-        if (document.getElementById('page-monitor').classList.contains('active')) {
-          connectLiveMonitor();
-        }
-      }, 3000);
+      // Auto-reconnect with backoff (single app-lifetime socket)
+      setTimeout(connectAdminWs, _wsReconnectDelay);
+      _wsReconnectDelay = Math.min(_wsReconnectDelay * 2, 30000);
     };
 
     adminWs.onmessage = (event) => {
@@ -1796,8 +2021,14 @@
         const msg = JSON.parse(event.data);
         if (msg.type === 'connected') return;
         appendLiveEvent(msg);
+        if (typeof msg.type === 'string' && msg.type.startsWith('chat.')) handleChatEvent(msg);
       } catch {}
     };
+  }
+
+  function setMonitorStatus(text) {
+    const el = document.getElementById('monitorStatus');
+    if (el) el.textContent = text;
   }
 
   function appendLiveEvent(msg) {
@@ -1810,6 +2041,7 @@
     liveEventCount++;
 
     const time = new Date(msg.timestamp).toLocaleTimeString();
+    const d = msg.data || {};
     let cssClass = 'ev-transcript';
     let icon = '💬';
     let text = '';
@@ -1818,19 +2050,57 @@
       case 'call.started':
         cssClass = 'ev-start';
         icon = '📞';
-        text = `<strong>${msg.data.agentName}</strong> — call started from <code>${msg.data.callerNumber}</code>`;
+        text = `<strong>${esc(d.agentName)}</strong> — call started from <code>${esc(d.callerNumber)}</code>`;
         break;
       case 'call.ended':
         cssClass = 'ev-end';
         icon = '📴';
-        text = `<strong>${msg.data.agentName}</strong> — call ended (${msg.data.duration}s, ${msg.data.transcriptLines} lines)`;
+        text = `<strong>${esc(d.agentName)}</strong> — call ended (${esc(d.duration)}s, ${esc(d.transcriptLines)} lines)`;
         break;
       case 'call.transcript':
-        icon = msg.data.role === 'user' ? '🗣️' : '🤖';
-        text = `<strong>${msg.data.agentName}</strong> [${msg.data.role}] ${msg.data.text}`;
+        icon = d.role === 'user' ? '🗣️' : '🤖';
+        text = `<strong>${esc(d.agentName)}</strong> [${esc(d.role)}] ${esc(d.text)}`;
+        break;
+      case 'chat.message': {
+        icon = '💬';
+        const body = (d.message && d.message.body) || '';
+        text = `WhatsApp · <strong>${esc(d.leadName || d.leadPhone || 'Lead')}</strong>: ${esc(body.slice(0, 80))}${body.length > 80 ? '…' : ''}`;
+        break;
+      }
+      case 'chat.callback':
+        cssClass = 'ev-alert';
+        icon = '📲';
+        text = `<strong>Callback requested</strong> — ${esc(d.leadName || d.leadPhone || 'Lead')}${d.preferredTime ? ' · ' + esc(d.preferredTime) : ''}${d.reason ? ' — ' + esc(d.reason) : ''}`;
+        break;
+      case 'chat.handoff':
+        cssClass = 'ev-alert';
+        icon = '🙋';
+        text = `<strong>Human handoff</strong> — ${esc(d.leadName || 'Lead')}${d.reason ? ': ' + esc(d.reason) : ''}`;
+        break;
+      case 'chat.mode_changed':
+        icon = '🔀';
+        text = `WhatsApp conversation mode → <strong>${esc(d.mode)}</strong>`;
+        break;
+      case 'chat.lead_captured':
+        cssClass = 'ev-start';
+        icon = '🎯';
+        text = `WhatsApp · new lead captured — <strong>${esc(d.leadName || d.leadPhone || 'Lead')}</strong>`;
+        break;
+      case 'chat.lead_updated':
+        icon = '🎯';
+        text = `WhatsApp · lead updated — <strong>${esc(d.leadName || d.leadPhone || 'Lead')}</strong>`;
+        break;
+      case 'chat.followup_scheduled':
+        icon = '⏰';
+        text = `WhatsApp · follow-up scheduled — <strong>${esc(d.leadName || d.leadPhone || 'Lead')}</strong>`;
+        break;
+      case 'chat.optout':
+        cssClass = 'ev-end';
+        icon = '🚫';
+        text = `WhatsApp · lead opted out — <strong>${esc(d.leadName || d.leadPhone || 'Lead')}</strong>`;
         break;
       default:
-        text = JSON.stringify(msg.data);
+        text = esc(JSON.stringify(msg.data));
     }
 
     const el = document.createElement('div');
@@ -1840,6 +2110,360 @@
 
     // Cap at 200 events
     while (feed.children.length > 200) feed.lastChild.remove();
+  }
+
+  // ─── Chats (WhatsApp) ───────────────────────────────
+  let _conversations = [];
+  let _currentConvo = null;
+  let _convoRefreshTimer = null;
+  let _leadsRefreshTimer = null;
+
+  async function loadConversations(resetSelection = false) {
+    const agentId = document.getElementById('chatsAgentSelect').value;
+    const el = document.getElementById('convoList');
+
+    if (resetSelection) { _currentConvo = null; renderChatPane(); }
+
+    if (!agentId) {
+      _conversations = [];
+      el.innerHTML = '<div class="empty-state" style="padding:2rem"><div class="icon">💬</div><p>Select an agent to view conversations</p></div>';
+      return;
+    }
+
+    try {
+      _conversations = await api(`/api/agents/${agentId}/conversations?status=open`);
+      renderConvoList();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  function renderConvoList() {
+    const el = document.getElementById('convoList');
+    if (!_conversations.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:2rem"><div class="icon">💬</div><p>No open conversations</p></div>';
+      return;
+    }
+    el.innerHTML = _conversations.map(c => {
+      const lead = c.lead || {};
+      const name = lead.name || lead.phone || 'Unknown';
+      const last = c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleString() : '—';
+      const active = _currentConvo && _currentConvo.id === c.id ? ' active' : '';
+      return `
+        <div class="convo-item${active}" onclick="openConversation('${esc(c.id)}')">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">
+            <span class="convo-name">${esc(name)}</span>
+            <span class="mode-badge mode-${esc(c.mode)}">${c.mode === 'human' ? 'HUMAN' : c.mode === 'paused' ? 'PAUSED' : 'AI'}</span>
+          </div>
+          <div class="convo-meta">
+            <span>${esc(last)}</span>
+            ${lead.status ? `<span class="lead-chip chip-${esc(lead.status)}">${esc(lead.status.replace(/_/g, ' '))}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function openConversation(convoId) {
+    try {
+      _currentConvo = await api(`/api/conversations/${convoId}`);
+      renderChatPane();
+      renderConvoList();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  function sentimentEmoji(s) {
+    return s === 'positive' ? '🙂' : s === 'negative' ? '🙁' : '😐';
+  }
+
+  function chatBubbleHTML(m) {
+    const senderLabel = m.sender === 'ai' ? 'AI' : m.sender === 'bd' ? 'BD' : m.sender === 'system' ? 'System' : '';
+    const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    const isIn = m.direction === 'in';
+    return `
+      <div class="chat-bubble-row ${isIn ? 'row-in' : 'row-out'}">
+        <div class="chat-bubble ${isIn ? 'bubble-in' : 'bubble-out'}">${esc(m.body)}<div class="bubble-meta">${senderLabel ? esc(senderLabel) + ' · ' : ''}${esc(time)}</div></div>
+      </div>
+    `;
+  }
+
+  function renderChatPane() {
+    const header = document.getElementById('chatHeader');
+    const transcript = document.getElementById('chatTranscript');
+    const input = document.getElementById('chatInput');
+    const btnSend = document.getElementById('btnChatSend');
+    const hint = document.getElementById('chatInputHint');
+
+    if (!_currentConvo) {
+      header.innerHTML = '';
+      transcript.innerHTML = '<div class="empty-state" style="padding:2rem"><div class="icon">💬</div><p>Select a conversation to view the transcript</p></div>';
+      input.disabled = true;
+      btnSend.disabled = true;
+      hint.textContent = '';
+      return;
+    }
+
+    const c = _currentConvo;
+    const lead = c.lead || {};
+    const isHuman = c.mode === 'human';
+
+    header.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;flex-wrap:wrap;padding-bottom:0.75rem;margin-bottom:0.75rem;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:700;font-size:0.95rem">${esc(lead.name || lead.phone || 'Unknown lead')}</div>
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.3rem;font-size:0.75rem;color:var(--text-muted)">
+            <span style="font-family:monospace">${esc(lead.phone) || '—'}</span>
+            <span title="Sentiment">${sentimentEmoji(lead.sentiment)} ${esc(lead.sentiment || 'neutral')}</span>
+            ${lead.status ? `<span class="lead-chip chip-${esc(lead.status)}">${esc(lead.status.replace(/_/g, ' '))}</span>` : ''}
+            <span><span class="window-dot ${c.windowOpen ? 'window-open' : 'window-closed'}"></span>${c.windowOpen ? 'window open' : 'window closed — template required'}</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <span class="mode-badge mode-${esc(c.mode)}">${isHuman ? 'HUMAN' : c.mode === 'paused' ? 'PAUSED' : 'AI'}</span>
+          <button class="btn ${isHuman ? 'btn-secondary' : 'btn-orange'} btn-sm" onclick="toggleTakeover()">${isHuman ? '🤖 Hand back to AI' : '🙋 Takeover'}</button>
+        </div>
+      </div>
+    `;
+
+    transcript.innerHTML = (c.messages || []).map(chatBubbleHTML).join('') ||
+      '<div class="empty-state" style="padding:2rem"><div class="icon">💬</div><p>No messages yet</p></div>';
+    transcript.scrollTop = transcript.scrollHeight;
+
+    input.disabled = !isHuman;
+    btnSend.disabled = !isHuman;
+    hint.textContent = isHuman ? '' : 'Take over to reply';
+  }
+
+  function appendChatBubble(m) {
+    const transcript = document.getElementById('chatTranscript');
+    const empty = transcript.querySelector('.empty-state');
+    if (empty) empty.remove();
+    transcript.insertAdjacentHTML('beforeend', chatBubbleHTML(m));
+    transcript.scrollTop = transcript.scrollHeight;
+  }
+
+  async function toggleTakeover() {
+    if (!_currentConvo) return;
+    const action = _currentConvo.mode === 'human' ? 'release' : 'takeover';
+    try {
+      await api(`/api/conversations/${_currentConvo.id}/${action}`, 'POST');
+      _currentConvo.mode = action === 'takeover' ? 'human' : 'ai';
+      const row = _conversations.find(c => c.id === _currentConvo.id);
+      if (row) row.mode = _currentConvo.mode;
+      toast(action === 'takeover' ? 'You took over this conversation' : 'Handed back to AI', 'success');
+      renderChatPane();
+      renderConvoList();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function sendChatMessage() {
+    if (!_currentConvo || _currentConvo.mode !== 'human') return;
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const btn = document.getElementById('btnChatSend');
+    btn.disabled = true;
+    try {
+      await api(`/api/conversations/${_currentConvo.id}/send`, 'POST', { text });
+      input.value = '';
+      const m = { direction: 'out', sender: 'bd', body: text, createdAt: new Date().toISOString() };
+      (_currentConvo.messages = _currentConvo.messages || []).push(m);
+      appendChatBubble(m);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      btn.disabled = _currentConvo.mode !== 'human';
+    }
+  }
+
+  function refreshConvoListSoon() {
+    if (!document.getElementById('chatsAgentSelect').value) return;
+    clearTimeout(_convoRefreshTimer);
+    _convoRefreshTimer = setTimeout(() => loadConversations(), 400);
+  }
+
+  function refreshLeadsSoon() {
+    if (!document.getElementById('page-leads').classList.contains('active')) return;
+    if (!document.getElementById('leadsAgentSelect').value) return;
+    clearTimeout(_leadsRefreshTimer);
+    _leadsRefreshTimer = setTimeout(loadLeadsPage, 600);
+  }
+
+  function handleChatEvent(msg) {
+    const d = msg.data || {};
+    switch (msg.type) {
+      case 'chat.message':
+        if (_currentConvo && _currentConvo.id === d.conversationId && d.message) {
+          (_currentConvo.messages = _currentConvo.messages || []).push(d.message);
+          appendChatBubble(d.message);
+          if (d.mode && d.mode !== _currentConvo.mode) { _currentConvo.mode = d.mode; renderChatPane(); }
+          else if (d.message.direction === 'in' && !_currentConvo.windowOpen) { _currentConvo.windowOpen = true; renderChatPane(); }
+        }
+        refreshConvoListSoon();
+        break;
+      case 'chat.mode_changed':
+        if (_currentConvo && _currentConvo.id === d.conversationId) {
+          _currentConvo.mode = d.mode;
+          renderChatPane();
+        }
+        refreshConvoListSoon();
+        break;
+      case 'chat.handoff':
+        toast(`🙋 Handoff requested — ${d.leadName || 'Lead'}${d.reason ? ': ' + d.reason : ''}`, 'info');
+        refreshConvoListSoon();
+        break;
+      case 'chat.callback':
+      case 'chat.lead_captured':
+      case 'chat.lead_updated':
+      case 'chat.followup_scheduled':
+        refreshLeadsSoon();
+        break;
+    }
+  }
+
+  // ─── Leads ──────────────────────────────────────────
+  let _cachedLeads = [];
+
+  async function loadLeadsPage() {
+    const agentId = document.getElementById('leadsAgentSelect').value;
+    const statusFilter = document.getElementById('leadStatusFilter').value;
+    const statsEl = document.getElementById('leadStats');
+    const cbEl = document.getElementById('callbackQueue');
+    const listEl = document.getElementById('leadsList');
+
+    if (!agentId) {
+      statsEl.style.display = 'none';
+      cbEl.innerHTML = '';
+      listEl.innerHTML = '<div class="empty-state"><div class="icon">🎯</div><p>Select an agent to view its leads</p></div>';
+      return;
+    }
+
+    try {
+      const [stats, callbacks, followups, leads] = await Promise.all([
+        api(`/api/agents/${agentId}/chat/stats`),
+        api(`/api/agents/${agentId}/callbacks`),
+        api(`/api/agents/${agentId}/followups`),
+        api(`/api/agents/${agentId}/leads${statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : ''}`)
+      ]);
+
+      _cachedLeads = leads;
+
+      statsEl.style.display = 'grid';
+      statsEl.innerHTML = `
+        <div class="stat-card"><div class="stat-label">Total Leads</div><div class="stat-value">${esc(stats.totalLeads ?? 0)}</div></div>
+        <div class="stat-card"><div class="stat-label">Qualified</div><div class="stat-value">${esc((stats.leadsByStatus || {}).qualified ?? 0)}</div></div>
+        <div class="stat-card"><div class="stat-label">Callbacks Pending</div><div class="stat-value">${esc(stats.pendingCallbacks ?? 0)}</div></div>
+        <div class="stat-card"><div class="stat-label">Follow-ups Scheduled</div><div class="stat-value">${esc(followups.length)}</div></div>
+      `;
+
+      renderCallbackQueue(callbacks);
+      renderLeadsTable(leads, listEl);
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  function renderCallbackQueue(callbacks) {
+    const el = document.getElementById('callbackQueue');
+    if (!callbacks.length) { el.innerHTML = ''; return; }
+
+    el.innerHTML = `
+      <div class="card callback-card">
+        <div class="card-header">
+          <h3 class="card-title">📲 Callback Queue</h3>
+          <span class="tag tag-error">${esc(callbacks.length)} pending</span>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Lead</th><th>Phone</th><th>Reason</th><th>Preferred Time</th><th></th></tr></thead><tbody>
+          ${callbacks.map(j => {
+            const lead = j.lead || {};
+            const p = j.payload || {};
+            const phone = p.phone || lead.phone || '';
+            return `
+              <tr>
+                <td style="color:var(--text-primary);font-weight:500">${esc(lead.name || phone || 'Unknown')}</td>
+                <td><a href="tel:${esc(phone)}" style="color:var(--teal);font-family:monospace;font-size:0.78rem;text-decoration:none">${esc(phone) || '—'}</a></td>
+                <td>${esc(p.reason) || '—'}</td>
+                <td>${esc(p.preferredTime) || '—'}</td>
+                <td><button class="btn btn-success btn-sm" onclick="completeJob('${esc(j.id)}')">✓ Done</button></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody></table></div>
+      </div>
+    `;
+  }
+
+  function renderLeadsTable(leads, el) {
+    if (!leads.length) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">🎯</div><p>No leads found</p></div>';
+      return;
+    }
+    el.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Source</th><th>Status</th><th>Sentiment</th><th>Last Update</th></tr></thead><tbody>' +
+      leads.map(l => `
+        <tr style="cursor:pointer" onclick="openLeadModal('${esc(l.id)}')">
+          <td style="color:var(--text-primary);font-weight:500">${esc(l.name) || '—'}${l.optedOut ? ' <span class="tag tag-error" style="margin-left:0.4rem">opted out</span>' : ''}</td>
+          <td style="font-family:monospace;font-size:0.78rem">${esc(l.phone) || '—'}</td>
+          <td>${esc(l.source) || '—'}</td>
+          <td><span class="lead-chip chip-${esc(l.status)}">${esc((l.status || '').replace(/_/g, ' '))}</span></td>
+          <td>${sentimentEmoji(l.sentiment)} ${esc(l.sentiment || 'neutral')}</td>
+          <td style="font-size:0.78rem">${l.updatedAt ? new Date(l.updatedAt).toLocaleString() : '—'}</td>
+        </tr>
+      `).join('') + '</tbody></table></div>';
+  }
+
+  function openLeadModal(leadId) {
+    const lead = _cachedLeads.find(l => l.id === leadId);
+    if (!lead) return;
+
+    document.getElementById('leadEditId').value = lead.id;
+    document.getElementById('leadModalTitle').textContent = lead.name || lead.phone || 'Lead';
+    document.getElementById('leadModalInfo').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+        <div>📞 <span style="font-family:monospace">${esc(lead.phone) || '—'}</span></div>
+        <div>✉️ ${esc(lead.email) || '—'}</div>
+        <div>🔗 Source: ${esc(lead.source) || '—'}</div>
+        <div>🕐 Created: ${lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : '—'}</div>
+      </div>
+    `;
+    document.getElementById('fLeadStatus').value = lead.status || 'new';
+    document.getElementById('fLeadSentiment').value = lead.sentiment || 'neutral';
+    document.getElementById('fLeadNote').value = '';
+
+    const notesEl = document.getElementById('leadNotesList');
+    const notes = lead.notes || [];
+    notesEl.innerHTML = notes.length ? `
+      <label style="display:block;font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.35rem;font-weight:500">Notes</label>
+      ${notes.map(n => `
+        <div class="lead-note">
+          ${esc(n.text)}
+          <div class="note-by">${esc(n.by) || '—'} · ${n.at ? new Date(n.at).toLocaleString() : ''}</div>
+        </div>
+      `).join('')}
+    ` : '';
+
+    document.getElementById('leadModal').classList.add('open');
+  }
+
+  async function saveLead() {
+    const id = document.getElementById('leadEditId').value;
+    const body = {
+      status: document.getElementById('fLeadStatus').value,
+      sentiment: document.getElementById('fLeadSentiment').value,
+    };
+    const note = document.getElementById('fLeadNote').value.trim();
+    if (note) body.note = note;
+
+    try {
+      await api(`/api/leads/${id}`, 'PUT', body);
+      toast('Lead updated!', 'success');
+      closeModal('leadModal');
+      loadLeadsPage();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function completeJob(jobId) {
+    try {
+      await api(`/api/jobs/${jobId}/complete`, 'POST');
+      toast('Callback marked as done', 'success');
+      loadLeadsPage();
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   // ─── Agent Clone ────────────────────────────────────
@@ -2086,6 +2710,7 @@
   // ─── Init ───────────────────────────────────────────
   loadDashboard();
   initDropZone();
+  connectAdminWs();
 </script>
 </body>
 </html>

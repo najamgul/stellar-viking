@@ -24,6 +24,7 @@ const documents = new Map();       // agentId → Map<docId, doc>
 const tools = new Map();            // agentId → Map<toolId, tool>
 const calls = new Map();            // callId → call log
 const phoneToAgent = new Map();     // phoneNumber → agentId
+const waToAgent = new Map();        // WhatsApp phone_number_id → agentId
 
 // ─── Persistence Helpers ───────────────────────────────────────────
 
@@ -103,10 +104,13 @@ function hydrate() {
   for (const [k, v] of loadedTools) tools.set(k, v);
   for (const [k, v] of loadedCalls) calls.set(k, v);
 
-  // Rebuild phone → agent index
+  // Rebuild phone → agent indexes
   for (const [id, agent] of agents) {
     if (agent.phoneNumber) {
       phoneToAgent.set(agent.phoneNumber, id);
+    }
+    if (agent.whatsappPhoneNumberId) {
+      waToAgent.set(agent.whatsappPhoneNumberId, id);
     }
   }
 
@@ -132,13 +136,16 @@ export async function createAgent(data) {
     role: data.role || 'AI Assistant',
     personality: data.personality || 'Professional, helpful, and concise.',
     systemPrompt: data.systemPrompt || '',
-    voice: data.voice || 'shimmer',
+    voice: data.voice || 'Kore',
     language: data.language || 'en',
+    conversationStyle: data.conversationStyle || 'natural',
     greeting: data.greeting || `Hi, thanks for calling! How can I help you today?`,
     guardrails: data.guardrails || [],
     transferNumber: data.transferNumber || null,
     consentMessage: data.consentMessage || 'This call may be recorded for quality purposes.',
     phoneNumber: data.phoneNumber || null,
+    whatsappPhoneNumberId: data.whatsappPhoneNumberId || null,  // Meta Cloud API phone_number_id
+    whatsappNumber: data.whatsappNumber || null,                // display number for wa.me links
     webhookUrl: data.webhookUrl || null,
     status: data.status || 'draft',
     createdAt: new Date().toISOString(),
@@ -148,6 +155,9 @@ export async function createAgent(data) {
   agents.set(id, agent);
   if (agent.phoneNumber) {
     phoneToAgent.set(agent.phoneNumber, id);
+  }
+  if (agent.whatsappPhoneNumberId) {
+    waToAgent.set(agent.whatsappPhoneNumberId, id);
   }
 
   saveStore('agents', agents);
@@ -166,13 +176,23 @@ export async function getAgentByPhone(phoneNumber) {
   return agents.get(agentId) || null;
 }
 
+export async function getAgentByWhatsappId(phoneNumberId) {
+  const agentId = waToAgent.get(phoneNumberId);
+  if (!agentId) return null;
+  return agents.get(agentId) || null;
+}
+
 export async function updateAgent(id, updates) {
   const agent = agents.get(id);
   if (!agent) return null;
 
-  if (updates.phoneNumber && updates.phoneNumber !== agent.phoneNumber) {
+  if ('phoneNumber' in updates && updates.phoneNumber !== agent.phoneNumber) {
     if (agent.phoneNumber) phoneToAgent.delete(agent.phoneNumber);
-    phoneToAgent.set(updates.phoneNumber, id);
+    if (updates.phoneNumber) phoneToAgent.set(updates.phoneNumber, id);
+  }
+  if ('whatsappPhoneNumberId' in updates && updates.whatsappPhoneNumberId !== agent.whatsappPhoneNumberId) {
+    if (agent.whatsappPhoneNumberId) waToAgent.delete(agent.whatsappPhoneNumberId);
+    if (updates.whatsappPhoneNumberId) waToAgent.set(updates.whatsappPhoneNumberId, id);
   }
 
   const updated = { ...agent, ...updates, updatedAt: new Date().toISOString() };
@@ -184,6 +204,7 @@ export async function updateAgent(id, updates) {
 export async function deleteAgent(id) {
   const agent = agents.get(id);
   if (agent?.phoneNumber) phoneToAgent.delete(agent.phoneNumber);
+  if (agent?.whatsappPhoneNumberId) waToAgent.delete(agent.whatsappPhoneNumberId);
   agents.delete(id);
   documents.delete(id);
   tools.delete(id);

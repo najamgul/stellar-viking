@@ -253,7 +253,7 @@
   </div>
 
   <script>
-    const API_URL = 'https://stellar-viking.fly.dev';
+    const API_URL = '';  // same-origin
     let agentId = null;
     let micStream = null;
     let audioContext = null;
@@ -299,7 +299,7 @@
 
         await startBrowserCall();
       } catch (err) {
-        alert('Failed to connect to server. Make sure it\'s running on localhost:3001.\n\n' + err.message);
+        alert('Failed to connect to server.\n\n' + err.message);
         btn.disabled = false;
         btn.textContent = '🚀 Create Agent & Start Test';
       }
@@ -314,7 +314,8 @@
       playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
       nextPlayTime = playbackCtx.currentTime;
 
-      const wsUrl = `ws://stellar-viking.fly.dev/test-call?agentId=${agentId}`;
+      const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const wsUrl = `${wsProto}://${location.host}/test-call?agentId=${agentId}`;
       geminiWs = new WebSocket(wsUrl);
 
       geminiWs.onopen = async () => {
