@@ -22,6 +22,7 @@ import { deferToWakingHours, getLocalHour } from './phone-locale.js';
 import { query as queryKnowledge } from '../knowledge/retriever.js';
 import { executeTool } from './tool-dispatcher.js';
 import { broadcast } from '../api/admin-events.js';
+import { syncToCrm, messagePayload } from '../integrations/crm-sync.js';
 
 const MAX_HISTORY = 40;         // messages fed to the model
 const MAX_TOOL_ROUNDS = 6;
@@ -78,6 +79,14 @@ export async function processInboundMessage(event) {
       lead.name = event.profileName;
     }
 
+    // Click-to-WhatsApp ad attribution — persist once, on the first ad message
+    if (event.referral && !lead.metadata?.campaign) {
+      const updated = await chatStore.updateLead(lead.id, {
+        metadata: { ...(lead.metadata || {}), campaign: event.referral },
+      });
+      if (updated) lead.metadata = updated.metadata;
+    }
+
     const convo = await chatStore.findOrCreateConversation(agent.id, lead.id, 'whatsapp');
 
     // Dedupe: Meta retries webhooks on slow/failed responses
@@ -125,6 +134,7 @@ export async function processInboundMessage(event) {
       message: inboundMsg,
       mode: convo.mode,
     });
+    syncToCrm(agent, 'message.logged', { lead, message: messagePayload(inboundMsg) });
 
     // ─── Gates ─────────────────────────────────────────────
     if (lead.optedOut) return;
@@ -296,6 +306,7 @@ async function sendVoiceReply(agent, convo, lead, text) {
       leadId: lead.id, leadName: lead.name, leadPhone: lead.phone,
       message: msg, mode: convo.mode,
     });
+    syncToCrm(agent, 'message.logged', { lead, message: messagePayload(msg) });
     return true;
   } catch (err) {
     logger.warn({ error: err.message }, 'Voice reply failed — falling back to text');
@@ -332,6 +343,7 @@ async function sendAndRecord(agent, convo, lead, sender, text) {
     message: msg,
     mode: convo.mode,
   });
+  syncToCrm(agent, 'message.logged', { lead, message: messagePayload(msg) });
   return msg;
 }
 
@@ -356,6 +368,17 @@ async function executeChatTool(toolName, args, ctx) {
         await chatStore.updateLead(lead.id, updates);
         if (args.note) await chatStore.addLeadNote(lead.id, args.note, 'ai');
         broadcast('chat.lead_updated', { leadId: lead.id, agentId: agent.id, ...updates });
+        const freshLead = { ...lead, ...updates };
+        syncToCrm(agent, 'lead.upserted', { lead: freshLead });
+        // A lead turning qualified = they stated a real requirement → alert BD
+        if (updates.status === 'qualified') {
+          const recent = await chatStore.listMessages(conversation.id, 10);
+          syncToCrm(agent, 'alert.qualified', {
+            lead: freshLead,
+            alert: { kind: 'qualified', detail: args.note || 'Lead qualified by the bot' },
+            transcript: recent,
+          });
+        }
         return `Lead updated: ${JSON.stringify(updates)}`;
       }
 
@@ -405,6 +428,14 @@ async function executeChatTool(toolName, args, ctx) {
           reason: args.reason,
           preferredTime: args.preferred_time || null,
         });
+        {
+          const recent = await chatStore.listMessages(conversation.id, 10);
+          syncToCrm(agent, 'alert.callback', {
+            lead: { ...lead, status: 'callback_requested' },
+            alert: { kind: 'callback', detail: args.reason, preferredTime: args.preferred_time || null },
+            transcript: recent,
+          });
+        }
         return 'The team has been alerted and will call them. Tell the lead someone will reach out' +
                (args.preferred_time ? ` around ${args.preferred_time}.` : ' soon.');
       }
@@ -418,6 +449,7 @@ async function executeChatTool(toolName, args, ctx) {
           metadata: { ...(lead.metadata || {}), facts },
         });
         if (updated) lead.metadata = updated.metadata;
+        syncToCrm(agent, 'lead.upserted', { lead });
         return `Remembered: ${key} = ${value}`;
       }
 
@@ -432,6 +464,14 @@ async function executeChatTool(toolName, args, ctx) {
           lead: { id: lead.id, name: lead.name, phone: lead.phone },
           reason: args.reason,
         });
+        {
+          const recent = await chatStore.listMessages(conversation.id, 10);
+          syncToCrm(agent, 'alert.handoff', {
+            lead,
+            alert: { kind: 'handoff', detail: args.reason },
+            transcript: recent,
+          });
+        }
         return 'Conversation will be handed to a human after your reply. Let the lead know a team member is taking over shortly.';
       }
 
@@ -538,5 +578,6 @@ export async function executeFollowupJob(job) {
     leadId: lead.id, leadName: lead.name, leadPhone: lead.phone,
     message: msg, mode: convo.mode,
   });
+  syncToCrm(agent, 'message.logged', { lead, message: messagePayload(msg) });
   return { usedTemplate: true };
 }

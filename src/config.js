@@ -35,6 +35,13 @@ const config = {
   whatsappTemplateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en',
   chatModel: process.env.CHAT_MODEL || 'gemini-flash-latest',
 
+  // CRM sync connector (global default — agents can override with
+  // agent.crmSyncUrl / agent.crmSyncKey; unset = feature off)
+  crmSync: {
+    url: process.env.CRM_SYNC_URL || null,   // e.g. https://your-crm.app/api/ingest/chatbot
+    key: process.env.CRM_SYNC_KEY || null,   // sent as x-crm-key header
+  },
+
   // Pinecone
   pineconeApiKey: process.env.PINECONE_API_KEY,
   pineconeIndexName: process.env.PINECONE_INDEX_NAME || 'stellar-viking',

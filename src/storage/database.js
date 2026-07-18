@@ -148,6 +148,8 @@ export async function createAgent(data) {
     whatsappPhoneNumberId: data.whatsappPhoneNumberId || null,  // Meta Cloud API phone_number_id
     whatsappNumber: data.whatsappNumber || null,                // display number for wa.me links
     webhookUrl: data.webhookUrl || null,
+    crmSyncUrl: data.crmSyncUrl || null,    // per-agent CRM connector target (overrides CRM_SYNC_URL)
+    crmSyncKey: data.crmSyncKey || null,    // per-agent CRM connector key (overrides CRM_SYNC_KEY)
     status: data.status || 'draft',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

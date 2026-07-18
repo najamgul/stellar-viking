@@ -105,6 +105,18 @@ export function parseWebhook(body) {
           type,
           mediaId,
           isVoiceNote,
+          // Click-to-WhatsApp ad attribution — Meta attaches `referral` to the
+          // first message a lead sends after tapping an ad
+          referral: msg.referral
+            ? {
+                sourceType: msg.referral.source_type || null,   // 'ad' | 'post'
+                sourceId: msg.referral.source_id || null,       // ad id
+                sourceUrl: msg.referral.source_url || null,
+                headline: msg.referral.headline || null,
+                body: msg.referral.body || null,
+                ctwaClid: msg.referral.ctwa_clid || null,
+              }
+            : null,
         });
       }
 
