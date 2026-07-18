@@ -192,11 +192,16 @@ export async function runAiTurn(agent, conversationId, leadId, injectedInstructi
     const calls = response.functionCalls;
     if (!calls || calls.length === 0) break;
 
+    // Echo the model's turn back VERBATIM — newer Gemini models attach a
+    // thoughtSignature to functionCall parts and reject requests that drop it.
+    contents.push(response.candidates[0].content);
+
+    const responseParts = [];
     for (const call of calls) {
       const result = await executeChatTool(call.name, call.args || {}, toolContext);
-      contents.push({ role: 'model', parts: [{ functionCall: { name: call.name, args: call.args || {} } }] });
-      contents.push({ role: 'user', parts: [{ functionResponse: { name: call.name, response: { result } } }] });
+      responseParts.push({ functionResponse: { name: call.name, response: { result } } });
     }
+    contents.push({ role: 'user', parts: responseParts });
   }
 
   const replyText = (response?.text || '').trim();
