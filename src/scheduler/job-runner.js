@@ -8,6 +8,7 @@
 
 import * as chatStore from '../storage/chat-store.js';
 import { executeFollowupJob, maybeNudge, maybeReengage } from '../engine/chat-session.js';
+import { retryCrmSyncJob } from '../integrations/crm-sync.js';
 import { deferToWakingHours } from '../engine/phone-locale.js';
 import logger from '../utils/logger.js';
 
@@ -35,6 +36,15 @@ async function tick() {
   try {
     const due = await chatStore.listDueJobs();
     for (const job of due) {
+      // Durable CRM-sync retries (self-manages status/backoff)
+      if (job.type === 'crm_sync') {
+        try {
+          await retryCrmSyncJob(job);
+        } catch (err) {
+          logger.error({ jobId: job.id, error: err.message }, 'CRM sync retry job crashed');
+        }
+        continue;
+      }
       if (job.type !== 'followup') continue; // callback_alert jobs are resolved by humans
       try {
         // Quiet hours: if it's night for the lead, push to their next morning
