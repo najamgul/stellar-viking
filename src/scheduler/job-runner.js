@@ -7,7 +7,7 @@
  */
 
 import * as chatStore from '../storage/chat-store.js';
-import { executeFollowupJob, maybeNudge } from '../engine/chat-session.js';
+import { executeFollowupJob, maybeNudge, maybeReengage } from '../engine/chat-session.js';
 import { deferToWakingHours } from '../engine/phone-locale.js';
 import logger from '../utils/logger.js';
 
@@ -70,15 +70,18 @@ async function tick() {
         }
       }
     }
-    // Silence-nudge scan: re-engage leads who went quiet mid-conversation
+    // Silence-nudge + re-engagement scan
     if (Date.now() - lastNudgeScan > NUDGE_SCAN_EVERY_MS) {
       lastNudgeScan = Date.now();
       const openConvos = await chatStore.listOpenAiConversations();
       for (const convo of openConvos) {
         try {
-          await maybeNudge(convo);
+          // Free-window nudges first; once the window is closed, the
+          // bounded paid drip takes over.
+          const nudged = await maybeNudge(convo);
+          if (!nudged) await maybeReengage(convo);
         } catch (err) {
-          logger.error({ conversationId: convo.id, error: err.message }, 'Nudge failed');
+          logger.error({ conversationId: convo.id, error: err.message }, 'Nudge/re-engage failed');
         }
       }
     }

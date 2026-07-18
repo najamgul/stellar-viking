@@ -70,7 +70,7 @@ export function messagePayload(msg) {
  * @param {string} event - contract event name
  * @param {object} data  - { lead, message?, alert?, transcript? }
  */
-export function syncToCrm(agent, event, { lead, message = null, alert = null, transcript = null }) {
+export function syncToCrm(agent, event, { lead, message = null, alert = null, transcript = null, followupAt = null }) {
   const target = resolveTarget(agent);
   if (!target || !lead?.phone) return;
 
@@ -83,6 +83,7 @@ export function syncToCrm(agent, event, { lead, message = null, alert = null, tr
   };
   if (message) payload.message = message;
   if (alert) payload.alert = alert;
+  if (followupAt) payload.followupAt = followupAt;
   if (transcript) {
     payload.transcript = transcript.map(m => ({
       direction: m.direction,

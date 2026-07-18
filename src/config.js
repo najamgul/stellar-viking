@@ -42,6 +42,15 @@ const config = {
     key: process.env.CRM_SYNC_KEY || null,   // sent as x-crm-key header
   },
 
+  // Paid re-engagement drip after the free 24h window closes.
+  // Hours since the lead's last message for each PAID template attempt;
+  // list length = per-lead spend cap. Requires WHATSAPP_FOLLOWUP_TEMPLATE.
+  reengage: {
+    enabled: process.env.REENGAGE_ENABLED !== 'false',
+    delaysHours: (process.env.REENGAGE_DELAYS_HOURS || '26,72,168')
+      .split(',').map(Number).filter(n => Number.isFinite(n) && n > 24),
+  },
+
   // Pinecone
   pineconeApiKey: process.env.PINECONE_API_KEY,
   pineconeIndexName: process.env.PINECONE_INDEX_NAME || 'stellar-viking',

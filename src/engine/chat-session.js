@@ -95,6 +95,13 @@ export async function processInboundMessage(event) {
       return;
     }
 
+    // The lead replied — reset the paid re-engagement drip budget
+    if (convo.dripCount || convo.dripClosedAt) {
+      await chatStore.updateConversation(convo.id, { dripCount: 0, lastDripAt: null, dripClosedAt: null });
+      convo.dripCount = 0;
+      convo.dripClosedAt = null;
+    }
+
     let bodyText = event.type === 'unsupported'
       ? '[sent a media attachment]'
       : (event.text || '');
@@ -404,6 +411,11 @@ async function executeChatTool(toolName, args, ctx) {
           leadId: lead.id, agentId: agent.id, leadName: lead.name,
           runAt: runAt.toISOString(), context: args.context,
         });
+        // Surface the bot's plan in the CRM's follow-up system
+        syncToCrm(agent, 'lead.upserted', {
+          lead: { ...lead, status: 'follow_up_scheduled' },
+          followupAt: runAt.toISOString(),
+        });
         return `Follow-up scheduled for ${runAt.toISOString()}. Confirm this casually to the lead.`;
       }
 
@@ -502,24 +514,38 @@ function notifyAgentWebhook(agent, eventType, data) {
 
 // ─── Silence nudge (called by the job runner's scan) ───────────────
 
-const NUDGE_AFTER_MS = 4 * 60 * 60 * 1000;      // quiet for 4h+
-const NUDGE_WINDOW_MARGIN_MS = 20 * 60 * 60 * 1000; // stay well inside 24h window
+const NUDGE_AFTER_MS = 4 * 60 * 60 * 1000;           // stage 1: quiet for 4h+
+const NUDGE_WINDOW_MARGIN_MS = 20 * 60 * 60 * 1000;  // stage 1: stay well inside 24h window
+const SAVER_MIN_MS = 20 * 60 * 60 * 1000;            // stage 2: window-close saver fires 20-23h
+const SAVER_MAX_MS = 23 * 60 * 60 * 1000;            //          after the lead's last message
 
 /**
- * Decide whether this conversation deserves a gentle nudge, and send it.
- * Conditions: AI mode, we spoke last, lead quiet 4-20h, window still open,
- * not already nudged since their last message, lead's local time is daytime.
+ * Two-stage silence re-engagement while the free 24h window is still open.
+ *
+ * Stage 1 — gentle nudge: lead quiet 4h+ mid-conversation, once per inbound.
+ * Stage 2 — window-close saver: the 24h free-reply window is about to shut
+ * (20-23h since their last message). One reply from the lead restarts the
+ * window for free; after it closes every message needs a PAID template. So
+ * this last message is crafted to elicit any reply at all.
  */
 export async function maybeNudge(convo, now = new Date()) {
   if (!convo.lastInboundAt || !convo.lastMessageAt) return false;
   const sinceInbound = now - new Date(convo.lastInboundAt);
   const sinceLastMsg = now - new Date(convo.lastMessageAt);
   const weSpokeLast = new Date(convo.lastMessageAt) > new Date(convo.lastInboundAt);
-
   if (!weSpokeLast) return false;
-  if (sinceLastMsg < NUDGE_AFTER_MS) return false;
-  if (sinceInbound > NUDGE_WINDOW_MARGIN_MS) return false;
-  if (convo.nudgedAt && new Date(convo.nudgedAt) > new Date(convo.lastInboundAt)) return false;
+
+  const lastInbound = new Date(convo.lastInboundAt);
+  const nudgedSinceInbound = convo.nudgedAt && new Date(convo.nudgedAt) > lastInbound;
+  const saverSentSinceInbound = convo.saverNudgedAt && new Date(convo.saverNudgedAt) > lastInbound;
+
+  let stage = null;
+  if (!nudgedSinceInbound && sinceLastMsg >= NUDGE_AFTER_MS && sinceInbound <= NUDGE_WINDOW_MARGIN_MS) {
+    stage = 1;
+  } else if (!saverSentSinceInbound && sinceInbound >= SAVER_MIN_MS && sinceInbound <= SAVER_MAX_MS) {
+    stage = 2;
+  }
+  if (!stage) return false;
 
   const lead = await chatStore.getLead(convo.leadId);
   if (!lead || lead.optedOut) return false;
@@ -531,13 +557,102 @@ export async function maybeNudge(convo, now = new Date()) {
   const agent = await db.getAgent(convo.agentId);
   if (!agent?.whatsappPhoneNumberId) return false;
 
-  const quietHours = Math.round(sinceLastMsg / 3600000);
-  await chatStore.updateConversation(convo.id, { nudgedAt: now.toISOString() });
-  await withConvoLock(convo.id, () => runAiTurn(agent, convo.id, lead.id,
-    `The lead went quiet ${quietHours} hours ago, mid-conversation, without replying to your last message. ` +
-    `Send ONE short, casual, low-pressure nudge that moves the conversation forward (reference what you were discussing). ` +
-    `No guilt-tripping, no "just checking in" clichés. One bubble only.`));
-  logger.info({ conversationId: convo.id }, '👋 Silence nudge sent');
+  if (stage === 1) {
+    const quietHours = Math.round(sinceLastMsg / 3600000);
+    await chatStore.updateConversation(convo.id, { nudgedAt: now.toISOString() });
+    await withConvoLock(convo.id, () => runAiTurn(agent, convo.id, lead.id,
+      `The lead went quiet ${quietHours} hours ago, mid-conversation, without replying to your last message. ` +
+      `Send ONE short, casual, low-pressure nudge that moves the conversation forward (reference what you were discussing). ` +
+      `No guilt-tripping, no "just checking in" clichés. One bubble only.`));
+    logger.info({ conversationId: convo.id }, '👋 Silence nudge sent');
+  } else {
+    const hoursLeft = Math.max(1, Math.round((24 * 3600000 - sinceInbound) / 3600000));
+    await chatStore.updateConversation(convo.id, { saverNudgedAt: now.toISOString() });
+    await withConvoLock(convo.id, () => runAiTurn(agent, convo.id, lead.id,
+      `[SYSTEM] The free messaging window with this lead closes in about ${hoursLeft} hour(s) — after that, ` +
+      `re-engaging costs money. Send ONE very short message (single line, one bubble) that ends with an easy, ` +
+      `low-effort question the lead can answer in one word — referencing the live topic (e.g. holding a price, ` +
+      `confirming a preference). The only goal is to get ANY reply. Never mention windows, deadlines or anything technical.`));
+    logger.info({ conversationId: convo.id, hoursLeft }, '⏳ Window-close saver sent');
+  }
+  return true;
+}
+
+// ─── Paid re-engagement drip (called by the job runner's scan) ─────
+
+const DRIP_GRACE_MS = 48 * 60 * 60 * 1000; // after final attempt, wait 48h before closing out
+
+/**
+ * Once the free 24h window has closed, re-engage a silent lead with a
+ * bounded sequence of PAID template messages (default: 26h, 72h, 168h after
+ * their last message). Any reply resets the budget (see processInboundMessage).
+ * When all attempts are spent and the lead stays silent 48h more, the lead is
+ * closed locally and marked unresponsive in the CRM — never spend again.
+ */
+export async function maybeReengage(convo, now = new Date()) {
+  if (!config.reengage.enabled || !config.whatsappFollowupTemplate) return false;
+  if (!convo.lastInboundAt) return false;
+  if (whatsapp.isWindowOpen(convo.lastInboundAt)) return false; // free window — nudges handle it
+
+  const lead = await chatStore.getLead(convo.leadId);
+  if (!lead || lead.optedOut) return false;
+  if (['closed', 'not_interested', 'callback_requested'].includes(lead.status)) return false;
+
+  const delays = config.reengage.delaysHours;
+  const attempt = convo.dripCount || 0;
+
+  // Budget exhausted → close out after the grace period
+  if (attempt >= delays.length) {
+    if (!convo.dripClosedAt && convo.lastDripAt
+        && now - new Date(convo.lastDripAt) > DRIP_GRACE_MS) {
+      await chatStore.updateConversation(convo.id, { dripClosedAt: now.toISOString() });
+      await chatStore.updateLead(lead.id, { status: 'not_interested' });
+      await chatStore.addLeadNote(lead.id,
+        `Auto-closed: no reply after ${delays.length} re-engagement attempts`, 'system');
+      broadcast('chat.lead_updated', { leadId: lead.id, agentId: convo.agentId, status: 'not_interested' });
+      const agent = await db.getAgent(convo.agentId);
+      if (agent) {
+        syncToCrm(agent, 'lead.unresponsive', { lead: { ...lead, status: 'not_interested' } });
+      }
+      logger.info({ conversationId: convo.id }, '💤 Lead marked unresponsive — drip budget exhausted');
+    }
+    return false;
+  }
+
+  const sinceInbound = now - new Date(convo.lastInboundAt);
+  if (sinceInbound < delays[attempt] * 60 * 60 * 1000) return false;
+
+  // Daytime only — a paid template at 3am is wasted money
+  const hour = getLocalHour(lead.phone, now);
+  if (hour !== null && (hour < 10 || hour >= 20)) return false;
+
+  const agent = await db.getAgent(convo.agentId);
+  if (!agent?.whatsappPhoneNumberId) return false;
+
+  const context = convo.summary || 'your inquiry with us';
+  const vars = [lead.name || 'there', context];
+  const { providerMessageId } = await whatsapp.sendSmart(
+    agent.whatsappPhoneNumberId, lead.phone, null, convo.lastInboundAt, vars);
+
+  const msg = await chatStore.addMessage({
+    conversationId: convo.id,
+    direction: 'out',
+    sender: 'ai',
+    type: 'template',
+    body: `[re-engage ${attempt + 1}/${delays.length}: ${config.whatsappFollowupTemplate}] ${vars.join(' · ')}`,
+    providerMessageId,
+  });
+  await chatStore.updateConversation(convo.id, {
+    dripCount: attempt + 1,
+    lastDripAt: now.toISOString(),
+  });
+  broadcast('chat.message', {
+    conversationId: convo.id, agentId: agent.id, agentName: agent.name,
+    leadId: lead.id, leadName: lead.name, leadPhone: lead.phone,
+    message: msg, mode: convo.mode,
+  });
+  syncToCrm(agent, 'message.logged', { lead, message: messagePayload(msg) });
+  logger.info({ conversationId: convo.id, attempt: attempt + 1, of: delays.length }, '💸 Paid re-engagement sent');
   return true;
 }
 
