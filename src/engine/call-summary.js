@@ -66,7 +66,7 @@ export async function generateCallSummary(callId) {
 
     const client = getClient();
     const response = await client.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: config.chatModel,
       contents: prompt,
     });
 

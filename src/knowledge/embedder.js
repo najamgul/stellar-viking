@@ -1,7 +1,7 @@
 /**
  * Google Embedding Service
  * 
- * Uses Google's text-embedding-004 model to generate embeddings.
+ * Uses Google's gemini-embedding-001 model to generate embeddings.
  * Supports batching for efficiency.
  */
 
@@ -32,7 +32,7 @@ export async function embedBatch(texts) {
     throw new Error('GEMINI_API_KEY not configured');
   }
 
-  const model = config.embeddingModel || 'text-embedding-004';
+  const model = config.embeddingModel || 'gemini-embedding-001';
   const url = `${EMBED_API_URL}/${model}:batchEmbedContents?key=${config.geminiApiKey}`;
 
   // Build batch request
@@ -79,7 +79,7 @@ export async function embedQuery(query) {
     throw new Error('GEMINI_API_KEY not configured');
   }
 
-  const model = config.embeddingModel || 'text-embedding-004';
+  const model = config.embeddingModel || 'gemini-embedding-001';
   const url = `${EMBED_API_URL}/${model}:embedContent?key=${config.geminiApiKey}`;
 
   const response = await fetch(url, {

@@ -14,7 +14,7 @@ const config = {
   geminiApiKey: process.env.GEMINI_API_KEY,
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.0-flash-live-001',
   geminiLiveModel: process.env.GEMINI_LIVE_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash-live-preview',
-  embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-004',
+  embeddingModel: process.env.EMBEDDING_MODEL || 'gemini-embedding-001',
 
   // Inworld AI
   inworldApiKey: process.env.INWORLD_API_KEY,
@@ -33,7 +33,7 @@ const config = {
   whatsappApiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
   whatsappFollowupTemplate: process.env.WHATSAPP_FOLLOWUP_TEMPLATE || null,  // approved template name for >24h re-engagement
   whatsappTemplateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en',
-  chatModel: process.env.CHAT_MODEL || 'gemini-2.0-flash',
+  chatModel: process.env.CHAT_MODEL || 'gemini-flash-latest',
 
   // Pinecone
   pineconeApiKey: process.env.PINECONE_API_KEY,
