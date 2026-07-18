@@ -5,6 +5,8 @@
  * this is its texting counterpart: same agent config, chat register.
  */
 
+import { getPhoneLocale } from './phone-locale.js';
+
 const LANG_MAP = {
   'en': 'English',
   'hi': 'Hindi',
@@ -53,6 +55,7 @@ export function buildChatSystemPrompt(agent, lead, agentTools = []) {
     `KNOWLEDGE:`,
     `- Use query_knowledge_base for any factual question about ${agent.companyName || 'the company'} (services, pricing, policies, details).`,
     `- NEVER invent facts, prices, or availability. If the knowledge base doesn't have it, say you'll check with the team and use handoff_to_human if it matters.`,
+    ...buildMoneySection(lead),
     ``,
     `LEAD MANAGEMENT (use your tools — this is how the sales team sees your work):`,
     `- Keep the lead's status current with update_lead_status as the conversation evolves:`,
@@ -93,6 +96,25 @@ export function buildChatSystemPrompt(agent, lead, agentTools = []) {
   sections.push(...leadLines);
 
   return sections.join('\n');
+}
+
+/** Currency rules based on the lead's phone country code. */
+function buildMoneySection(lead) {
+  const locale = getPhoneLocale(lead.phone);
+  if (!locale) {
+    return [
+      ``,
+      `MONEY & CURRENCY:`,
+      `- Only quote specific prices that come from the knowledge base, in the exact currency the knowledge base states. Never invent prices or exchange rates.`,
+    ];
+  }
+  return [
+    ``,
+    `MONEY & CURRENCY:`,
+    `- The lead is messaging from ${locale.country} (${locale.callingCode}). When talking about money in general, use their currency: ${locale.currency} (${locale.symbol}) — e.g. "${locale.symbol}5,000", never dollars by default.`,
+    `- Specific prices must come from the knowledge base. Quote them in the exact currency the knowledge base states — do NOT convert between currencies or invent exchange rates. If that differs from the lead's currency, just name the currency clearly.`,
+    `- If asked for a price the knowledge base doesn't have, say you'll confirm with the team rather than guessing a number.`,
+  ];
 }
 
 /**
