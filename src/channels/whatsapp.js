@@ -79,6 +79,8 @@ export function parseWebhook(body) {
         const contact = (value.contacts || [])[0];
         let text = null;
         let type = msg.type;
+        let mediaId = null;
+        let isVoiceNote = false;
         if (msg.type === 'text') {
           text = msg.text?.body || '';
         } else if (msg.type === 'button') {
@@ -86,8 +88,11 @@ export function parseWebhook(body) {
         } else if (msg.type === 'interactive') {
           text = msg.interactive?.button_reply?.title
               || msg.interactive?.list_reply?.title || '';
+        } else if (msg.type === 'audio') {
+          mediaId = msg.audio?.id || null;
+          isVoiceNote = Boolean(msg.audio?.voice);
         } else {
-          type = 'unsupported'; // image/audio/document/etc — acknowledged, not processed
+          type = 'unsupported'; // image/document/etc — acknowledged, not processed
         }
         events.push({
           kind: 'message',
@@ -98,6 +103,8 @@ export function parseWebhook(body) {
           timestamp: msg.timestamp,
           text,
           type,
+          mediaId,
+          isVoiceNote,
         });
       }
 
@@ -165,6 +172,73 @@ export async function sendTemplate(phoneNumberId, to, templateName, variables = 
       language: { code: language || config.whatsappTemplateLanguage },
       components,
     },
+  });
+  return data.messages?.[0]?.id || null;
+}
+
+/** React to a lead's message with an emoji (👍 ❤️ etc). Non-fatal on error. */
+export async function sendReaction(phoneNumberId, to, messageId, emoji) {
+  try {
+    await graphPost(phoneNumberId, {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: to.replace(/^\+/, ''),
+      type: 'reaction',
+      reaction: { message_id: messageId, emoji },
+    });
+  } catch (err) {
+    logger.debug({ error: err.message }, 'sendReaction failed (ignored)');
+  }
+}
+
+/**
+ * Download inbound media (voice notes etc). Two-step: media id → CDN URL
+ * (requires auth) → bytes.
+ * @returns {{ base64: string, mimeType: string }}
+ */
+export async function downloadMedia(mediaId) {
+  const metaRes = await fetch(`${GRAPH_BASE}/${config.whatsappApiVersion}/${mediaId}`, {
+    headers: { 'Authorization': `Bearer ${config.whatsappAccessToken}` },
+  });
+  const meta = await metaRes.json();
+  if (!metaRes.ok || !meta.url) {
+    throw new Error(`Media lookup failed: ${meta?.error?.message || metaRes.status}`);
+  }
+  const fileRes = await fetch(meta.url, {
+    headers: { 'Authorization': `Bearer ${config.whatsappAccessToken}` },
+  });
+  if (!fileRes.ok) throw new Error(`Media download failed: HTTP ${fileRes.status}`);
+  const buffer = Buffer.from(await fileRes.arrayBuffer());
+  return { base64: buffer.toString('base64'), mimeType: meta.mime_type || 'audio/ogg' };
+}
+
+/** Upload audio bytes, returns a media id usable in sendAudio. */
+export async function uploadAudio(phoneNumberId, base64Audio, mimeType = 'audio/mpeg') {
+  const form = new FormData();
+  form.append('messaging_product', 'whatsapp');
+  form.append('type', mimeType);
+  form.append('file', new Blob([Buffer.from(base64Audio, 'base64')], { type: mimeType }),
+    mimeType.includes('mpeg') ? 'voice.mp3' : 'voice.ogg');
+  const res = await fetch(`${GRAPH_BASE}/${config.whatsappApiVersion}/${phoneNumberId}/media`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${config.whatsappAccessToken}` },
+    body: form,
+  });
+  const data = await res.json();
+  if (!res.ok || !data.id) {
+    throw new Error(`Media upload failed: ${data?.error?.message || res.status}`);
+  }
+  return data.id;
+}
+
+/** Send an uploaded audio message (renders as a playable audio/voice message). */
+export async function sendAudio(phoneNumberId, to, mediaId) {
+  const data = await graphPost(phoneNumberId, {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: to.replace(/^\+/, ''),
+    type: 'audio',
+    audio: { id: mediaId },
   });
   return data.messages?.[0]?.id || null;
 }

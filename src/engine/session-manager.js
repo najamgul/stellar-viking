@@ -22,6 +22,7 @@ import { mulawToPcm16k, mulawToPcm24k, pcm24kToMulaw } from '../telephony/audio-
 const AI_PROVIDER = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
 import config from '../config.js';
 import * as db from '../storage/database.js';
+import * as chatStore from '../storage/chat-store.js';
 import { broadcast } from '../api/admin-events.js';
 import { generateCallSummary } from './call-summary.js';
 
@@ -102,8 +103,28 @@ class SessionManager {
     // Load agent's tools
     const agentTools = await db.listTools(this.agent.id);
 
+    // Cross-channel memory: if this caller is a known chat lead, give the
+    // voice agent their profile so the call doesn't start cold.
+    let callerContext = null;
+    try {
+      const lead = await chatStore.getLeadByPhone(this.agent.id, this.callerNumber);
+      if (lead) {
+        const facts = lead.metadata?.facts || {};
+        const factLines = Object.entries(facts).map(([k, v]) => `${k}: ${v}`).join('; ');
+        const recentNotes = (lead.notes || []).slice(-3).map(n => n.text).join(' | ');
+        callerContext = {
+          name: lead.name,
+          lastInteraction: `WhatsApp conversation (lead status: ${lead.status}${lead.sentiment ? `, sentiment ${lead.sentiment}` : ''})`,
+          notes: [factLines, recentNotes].filter(Boolean).join(' | ') || undefined,
+        };
+        this.log.info({ leadId: lead.id }, '🧠 Caller recognized from chat leads');
+      }
+    } catch (err) {
+      this.log.warn({ error: err.message }, 'Lead lookup failed (continuing without context)');
+    }
+
     // Build dynamic prompt and Gemini tool definitions
-    const systemPrompt = buildSystemPrompt(this.agent, agentTools);
+    const systemPrompt = buildSystemPrompt(this.agent, agentTools, callerContext);
     const toolDefinitions = buildToolDefinitions(this.agent, agentTools);
 
     this.log.debug({ promptLength: systemPrompt.length, toolCount: toolDefinitions[0]?.functionDeclarations?.length || 0 }, 'Prompt built');

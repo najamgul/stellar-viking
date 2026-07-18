@@ -50,6 +50,9 @@ export function buildSystemPrompt(agent, agentTools = [], callerContext = null) 
       `- Vary your sentence length. Mix short punchy responses with slightly longer explanations.`,
       `- Show empathy and warmth. React to what the caller says — "Oh that's great!", "I totally understand."`,
       `- Pause naturally. Don't rush through information.`,
+      `- Backchannel like a real listener: short acknowledgements ("mm-hmm", "right", "got it") when the caller explains something long — then respond.`,
+      `- Mirror the caller's emotional state: if they sound frustrated, slow down, soften your tone, and acknowledge it before problem-solving; if they're excited, match their energy.`,
+      `- Never sound like you're reading. If you list options, mention two or three conversationally, not as a numbered list.`,
     ],
     professional: [
       `- You are on a professional phone call. Maintain a polished, corporate tone.`,
@@ -88,6 +91,14 @@ export function buildSystemPrompt(agent, agentTools = [], callerContext = null) 
     `use the "query_knowledge_base" function to find accurate information.`,
     `NEVER make up factual information. If you can't find the answer, say so honestly.`
   );
+
+  // ─── Persona example dialogue ──────────────────────────
+  if (agent.exampleDialogue) {
+    sections.push(
+      `\nHOW YOU SOUND — example conversation. Match this style, rhythm and vocabulary exactly (the content is just an example):`,
+      agent.exampleDialogue
+    );
+  }
 
   // ─── Custom System Prompt ──────────────────────────────
   if (agent.systemPrompt) {

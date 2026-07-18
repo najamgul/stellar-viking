@@ -139,6 +139,7 @@ export async function createAgent(data) {
     voice: data.voice || 'Kore',
     language: data.language || 'en',
     conversationStyle: data.conversationStyle || 'natural',
+    exampleDialogue: data.exampleDialogue || null,   // few-shot style sample for both channels
     greeting: data.greeting || `Hi, thanks for calling! How can I help you today?`,
     guardrails: data.guardrails || [],
     transferNumber: data.transferNumber || null,

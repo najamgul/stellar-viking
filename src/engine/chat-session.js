@@ -18,6 +18,7 @@ import * as db from '../storage/database.js';
 import * as chatStore from '../storage/chat-store.js';
 import * as whatsapp from '../channels/whatsapp.js';
 import { buildChatSystemPrompt, buildChatToolDeclarations } from './chat-prompt.js';
+import { deferToWakingHours, getLocalHour } from './phone-locale.js';
 import { query as queryKnowledge } from '../knowledge/retriever.js';
 import { executeTool } from './tool-dispatcher.js';
 import { broadcast } from '../api/admin-events.js';
@@ -85,15 +86,31 @@ export async function processInboundMessage(event) {
       return;
     }
 
-    const bodyText = event.type === 'unsupported'
+    let bodyText = event.type === 'unsupported'
       ? '[sent a media attachment]'
       : (event.text || '');
+    let msgType = event.type === 'unsupported' ? 'unsupported' : 'text';
+    let leadSentVoiceNote = false;
+
+    // Voice notes: download + transcribe so the AI "hears" them
+    if (event.type === 'audio' && event.mediaId) {
+      msgType = 'audio';
+      leadSentVoiceNote = event.isVoiceNote;
+      try {
+        const media = await whatsapp.downloadMedia(event.mediaId);
+        const transcript = await transcribeAudio(media.base64, media.mimeType);
+        bodyText = transcript ? `🎤 ${transcript}` : '[voice note — could not transcribe]';
+      } catch (err) {
+        logger.warn({ error: err.message }, 'Voice note transcription failed');
+        bodyText = '[voice note — could not transcribe]';
+      }
+    }
 
     const inboundMsg = await chatStore.addMessage({
       conversationId: convo.id,
       direction: 'in',
       sender: 'lead',
-      type: event.type === 'unsupported' ? 'unsupported' : 'text',
+      type: msgType,
       body: bodyText,
       providerMessageId: event.messageId,
     });
@@ -130,7 +147,15 @@ export async function processInboundMessage(event) {
 
     await whatsapp.markReadWithTyping(event.phoneNumberId, event.messageId);
 
-    await withConvoLock(convo.id, () => runAiTurn(agent, convo.id, lead.id));
+    // Occasionally react like a human would to warm/affirming messages
+    if (/\b(thank|thanks|shukriya|dhanyavaad|great|perfect|awesome|nice|love|good)\b/i.test(bodyText)
+        && Math.random() < 0.35) {
+      const emoji = /\b(thank|thanks|shukriya|dhanyavaad)\b/i.test(bodyText) ? '🙏' : '👍';
+      whatsapp.sendReaction(event.phoneNumberId, lead.phone, event.messageId, emoji);
+    }
+
+    await withConvoLock(convo.id, () =>
+      runAiTurn(agent, convo.id, lead.id, null, { replyWithVoice: leadSentVoiceNote }));
 
   } catch (err) {
     logger.error({ error: err.message, stack: err.stack }, 'processInboundMessage failed');
@@ -156,7 +181,7 @@ export async function processStatusEvent(event) {
  * @param {string} [injectedInstruction] - extra system-side nudge, used by
  *   the scheduler ("it's time for the follow-up about X").
  */
-export async function runAiTurn(agent, conversationId, leadId, injectedInstruction = null) {
+export async function runAiTurn(agent, conversationId, leadId, injectedInstruction = null, opts = {}) {
   const convo = await chatStore.getConversation(conversationId);
   const lead = await chatStore.getLead(leadId);
   if (!convo || !lead) return;
@@ -206,15 +231,75 @@ export async function runAiTurn(agent, conversationId, leadId, injectedInstructi
 
   const replyText = (response?.text || '').trim();
   if (replyText) {
-    const bubbles = replyText.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean).slice(0, MAX_BUBBLES);
-    for (const bubble of bubbles) {
-      await sleep(whatsapp.typingDelayMs(bubble));
-      await sendAndRecord(agent, convo, lead, 'ai', bubble);
+    // Mirror the lead: if they sent a voice note, try replying with one
+    if (opts.replyWithVoice && config.inworldTtsApiKey) {
+      const spoken = replyText.replace(/\n\s*\n/g, ' ... ');
+      const sent = await sendVoiceReply(agent, convo, lead, spoken);
+      if (!sent) {
+        for (const bubble of splitBubbles(replyText)) {
+          await sleep(whatsapp.typingDelayMs(bubble));
+          await sendAndRecord(agent, convo, lead, 'ai', bubble);
+        }
+      }
+    } else {
+      for (const bubble of splitBubbles(replyText)) {
+        await sleep(whatsapp.typingDelayMs(bubble));
+        await sendAndRecord(agent, convo, lead, 'ai', bubble);
+      }
     }
   }
 
   if (toolContext.handedOff) {
     await chatStore.updateConversation(conversationId, { mode: 'human' });
+  }
+}
+
+function splitBubbles(replyText) {
+  return replyText.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean).slice(0, MAX_BUBBLES);
+}
+
+/** Transcribe a voice note with Gemini's native audio understanding. */
+async function transcribeAudio(base64, mimeType) {
+  const client = getClient();
+  const response = await client.models.generateContent({
+    model: config.chatModel,
+    contents: [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType, data: base64 } },
+        { text: 'Transcribe this voice message exactly as spoken (keep the original language; use Latin script if the speaker mixes languages casually). Return ONLY the transcription, nothing else.' },
+      ],
+    }],
+  });
+  return (response.text || '').trim();
+}
+
+/** Synthesize the reply with Inworld TTS and send it as a WhatsApp audio message. */
+async function sendVoiceReply(agent, convo, lead, text) {
+  try {
+    const { InworldTTS } = await import('./inworld-tts.js');
+    const tts = new InworldTTS({ voiceId: agent.chatVoice || 'Riya' });
+    const base64Mp3 = await tts.speakHTTP(text);
+    if (!base64Mp3) throw new Error('TTS returned no audio');
+    const mediaId = await whatsapp.uploadAudio(agent.whatsappPhoneNumberId, base64Mp3, 'audio/mpeg');
+    const providerMessageId = await whatsapp.sendAudio(agent.whatsappPhoneNumberId, lead.phone, mediaId);
+    const msg = await chatStore.addMessage({
+      conversationId: convo.id,
+      direction: 'out',
+      sender: 'ai',
+      type: 'audio',
+      body: `🎤 ${text}`,
+      providerMessageId,
+    });
+    broadcast('chat.message', {
+      conversationId: convo.id, agentId: agent.id, agentName: agent.name,
+      leadId: lead.id, leadName: lead.name, leadPhone: lead.phone,
+      message: msg, mode: convo.mode,
+    });
+    return true;
+  } catch (err) {
+    logger.warn({ error: err.message }, 'Voice reply failed — falling back to text');
+    return false;
   }
 }
 
@@ -275,10 +360,12 @@ async function executeChatTool(toolName, args, ctx) {
       }
 
       case 'schedule_followup': {
-        const runAt = new Date(args.datetime);
+        let runAt = new Date(args.datetime);
         if (isNaN(runAt.getTime()) || runAt <= new Date()) {
           return 'Error: datetime must be a valid ISO 8601 time in the future. Ask the lead to clarify the time if needed.';
         }
+        // Never fire scheduled messages in the lead's night
+        runAt = deferToWakingHours(lead.phone, runAt);
         // One pending follow-up per conversation — newest wins
         await chatStore.cancelPendingJobs(conversation.id, 'followup');
         await chatStore.createJob({
@@ -322,6 +409,18 @@ async function executeChatTool(toolName, args, ctx) {
                (args.preferred_time ? ` around ${args.preferred_time}.` : ' soon.');
       }
 
+      case 'remember_lead_fact': {
+        const key = String(args.key || '').trim().slice(0, 60);
+        const value = String(args.value || '').trim().slice(0, 300);
+        if (!key || !value) return 'Error: key and value are required.';
+        const facts = { ...(lead.metadata?.facts || {}), [key]: value };
+        const updated = await chatStore.updateLead(lead.id, {
+          metadata: { ...(lead.metadata || {}), facts },
+        });
+        if (updated) lead.metadata = updated.metadata;
+        return `Remembered: ${key} = ${value}`;
+      }
+
       case 'handoff_to_human': {
         ctx.handedOff = true;
         await chatStore.addLeadNote(lead.id, `AI handed off: ${args.reason}`, 'ai');
@@ -359,6 +458,47 @@ function notifyAgentWebhook(agent, eventType, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event: eventType, timestamp: new Date().toISOString(), data }),
   }).catch(err => logger.warn({ error: err.message }, 'Agent webhook notify failed'));
+}
+
+// ─── Silence nudge (called by the job runner's scan) ───────────────
+
+const NUDGE_AFTER_MS = 4 * 60 * 60 * 1000;      // quiet for 4h+
+const NUDGE_WINDOW_MARGIN_MS = 20 * 60 * 60 * 1000; // stay well inside 24h window
+
+/**
+ * Decide whether this conversation deserves a gentle nudge, and send it.
+ * Conditions: AI mode, we spoke last, lead quiet 4-20h, window still open,
+ * not already nudged since their last message, lead's local time is daytime.
+ */
+export async function maybeNudge(convo, now = new Date()) {
+  if (!convo.lastInboundAt || !convo.lastMessageAt) return false;
+  const sinceInbound = now - new Date(convo.lastInboundAt);
+  const sinceLastMsg = now - new Date(convo.lastMessageAt);
+  const weSpokeLast = new Date(convo.lastMessageAt) > new Date(convo.lastInboundAt);
+
+  if (!weSpokeLast) return false;
+  if (sinceLastMsg < NUDGE_AFTER_MS) return false;
+  if (sinceInbound > NUDGE_WINDOW_MARGIN_MS) return false;
+  if (convo.nudgedAt && new Date(convo.nudgedAt) > new Date(convo.lastInboundAt)) return false;
+
+  const lead = await chatStore.getLead(convo.leadId);
+  if (!lead || lead.optedOut) return false;
+  if (['closed', 'not_interested', 'callback_requested'].includes(lead.status)) return false;
+
+  const hour = getLocalHour(lead.phone, now);
+  if (hour !== null && (hour < 9 || hour >= 21)) return false;
+
+  const agent = await db.getAgent(convo.agentId);
+  if (!agent?.whatsappPhoneNumberId) return false;
+
+  const quietHours = Math.round(sinceLastMsg / 3600000);
+  await chatStore.updateConversation(convo.id, { nudgedAt: now.toISOString() });
+  await withConvoLock(convo.id, () => runAiTurn(agent, convo.id, lead.id,
+    `The lead went quiet ${quietHours} hours ago, mid-conversation, without replying to your last message. ` +
+    `Send ONE short, casual, low-pressure nudge that moves the conversation forward (reference what you were discussing). ` +
+    `No guilt-tripping, no "just checking in" clichés. One bubble only.`));
+  logger.info({ conversationId: convo.id }, '👋 Silence nudge sent');
+  return true;
 }
 
 // ─── Scheduled follow-up execution (called by the job runner) ──────

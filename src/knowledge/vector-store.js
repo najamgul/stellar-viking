@@ -140,8 +140,19 @@ export function deleteByAgent(agentId) {
 }
 
 /**
+ * Get all stored items for an agent (used to rebuild the keyword index
+ * after a restart — vectors persist to disk, the keyword index doesn't).
+ * @param {string} agentId
+ * @returns {object[]} Array of { vector, text, metadata }
+ */
+export function getAll(agentId) {
+  ensureLoaded(agentId);
+  return store.get(agentId) || [];
+}
+
+/**
  * Get stats for an agent's vector store.
- * @param {string} agentId 
+ * @param {string} agentId
  * @returns {{ count: number, documents: string[] }}
  */
 export function getStats(agentId) {

@@ -7,12 +7,15 @@
  */
 
 import * as chatStore from '../storage/chat-store.js';
-import { executeFollowupJob } from '../engine/chat-session.js';
+import { executeFollowupJob, maybeNudge } from '../engine/chat-session.js';
+import { deferToWakingHours } from '../engine/phone-locale.js';
 import logger from '../utils/logger.js';
 
 const TICK_MS = 30 * 1000;
+const NUDGE_SCAN_EVERY_MS = 10 * 60 * 1000;   // scan for quiet leads every 10 min
 let timer = null;
 let running = false;
+let lastNudgeScan = 0;
 
 export function startScheduler() {
   if (timer) return;
@@ -34,6 +37,16 @@ async function tick() {
     for (const job of due) {
       if (job.type !== 'followup') continue; // callback_alert jobs are resolved by humans
       try {
+        // Quiet hours: if it's night for the lead, push to their next morning
+        const lead = await chatStore.getLead(job.leadId);
+        if (lead?.phone) {
+          const deferred = deferToWakingHours(lead.phone, new Date());
+          if (deferred.getTime() - Date.now() > 60 * 1000) {
+            await chatStore.updateJob(job.id, { status: 'pending', runAt: deferred.toISOString() });
+            logger.info({ jobId: job.id, deferredTo: deferred.toISOString() }, '🌙 Follow-up deferred to lead\'s morning');
+            continue;
+          }
+        }
         const result = await executeFollowupJob(job);
         await chatStore.updateJob(job.id, {
           status: 'done',
@@ -54,6 +67,18 @@ async function tick() {
             status: 'failed',
             payload: { ...job.payload, lastError: err.message },
           });
+        }
+      }
+    }
+    // Silence-nudge scan: re-engage leads who went quiet mid-conversation
+    if (Date.now() - lastNudgeScan > NUDGE_SCAN_EVERY_MS) {
+      lastNudgeScan = Date.now();
+      const openConvos = await chatStore.listOpenAiConversations();
+      for (const convo of openConvos) {
+        try {
+          await maybeNudge(convo);
+        } catch (err) {
+          logger.error({ conversationId: convo.id, error: err.message }, 'Nudge failed');
         }
       }
     }

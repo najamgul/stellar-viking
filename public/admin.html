@@ -1141,6 +1141,10 @@
         <div class="form-group"><label>WhatsApp Number (for wa.me links, e.g. +923001234567)</label><input id="fWhatsappNumber" placeholder="+923001234567" /></div>
       </div>
       <div class="form-group">
+        <label>Example Dialogue (optional — teaches the agent its exact texting/speaking style)</label>
+        <textarea id="fExampleDialogue" rows="4" placeholder="Lead: kitna price hai gulmarg package ka?&#10;Agent: Gulmarg ka 3-night package ₹24,500 per person hai 😊 dates decide ki aapne?&#10;Lead: march me soch rahe hai&#10;Agent: perfect, march me snow bhi milega! kitne log honge?"></textarea>
+      </div>
+      <div class="form-group">
         <label>Status</label>
         <select id="fStatus"><option value="active">Active</option><option value="draft">Draft</option></select>
       </div>
@@ -1537,6 +1541,7 @@
     document.getElementById('fTransfer').value = agent?.transferNumber || '';
     document.getElementById('fWhatsappPhoneId').value = agent?.whatsappPhoneNumberId || '';
     document.getElementById('fWhatsappNumber').value = agent?.whatsappNumber || '';
+    document.getElementById('fExampleDialogue').value = agent?.exampleDialogue || '';
     document.getElementById('fStatus').value = agent?.status || 'active';
     document.getElementById('agentModal').classList.add('open');
   }
@@ -1563,6 +1568,7 @@
       transferNumber: document.getElementById('fTransfer').value || null,
       whatsappPhoneNumberId: document.getElementById('fWhatsappPhoneId').value || null,
       whatsappNumber: document.getElementById('fWhatsappNumber').value || null,
+      exampleDialogue: document.getElementById('fExampleDialogue').value || null,
       status: document.getElementById('fStatus').value,
     };
 

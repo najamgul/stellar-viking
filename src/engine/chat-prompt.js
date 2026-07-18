@@ -5,7 +5,7 @@
  * this is its texting counterpart: same agent config, chat register.
  */
 
-import { getPhoneLocale } from './phone-locale.js';
+import { getPhoneLocale, getLocalHour } from './phone-locale.js';
 
 const LANG_MAP = {
   'en': 'English',
@@ -34,6 +34,13 @@ export function buildChatSystemPrompt(agent, lead, agentTools = []) {
     `Current date and time: ${now.toISOString()} (${now.toUTCString()}).`
   );
 
+  const localHour = getLocalHour(lead.phone, now);
+  if (localHour !== null) {
+    const daypart = localHour < 5 ? 'late night' : localHour < 12 ? 'morning'
+      : localHour < 17 ? 'afternoon' : localHour < 21 ? 'evening' : 'night';
+    sections.push(`For the lead it is currently ${daypart} (~${localHour}:00 their local time) — greet and phrase accordingly.`);
+  }
+
   if (agent.language) {
     sections.push(`Language: write in ${LANG_MAP[agent.language] || agent.language}.`);
   }
@@ -44,7 +51,7 @@ export function buildChatSystemPrompt(agent, lead, agentTools = []) {
     `- Write like a real person texting: short messages, contractions, casual warmth. 1-3 short sentences per message.`,
     `- Never use markdown, headers, or bullet lists. Plain text only. Emojis sparingly (max one per message, only when natural).`,
     `- Ask at most ONE question per message.`,
-    `- Mirror the lead's tone and language. If they write short, you write short.`,
+    `- Mirror the lead's tone, language AND script. If they write Hindi/Urdu in Latin letters (Hinglish / Roman Urdu, e.g. "kitna price hai?"), reply the same way in Latin letters — never switch to Devanagari or Urdu script unless they do.`,
     `- To send multiple message bubbles, separate them with a blank line. Use 1-2 bubbles normally, 3 max.`,
     `- Never sound like a call-center script. No "How may I assist you today?"`,
     ``,
@@ -63,8 +70,17 @@ export function buildChatSystemPrompt(agent, lead, agentTools = []) {
     `  Always include your read of their sentiment (positive/neutral/negative).`,
     `- If the lead asks you to get back to them later ("message me next week", "after 7pm"), use schedule_followup with the exact ISO datetime and a short context note, then confirm casually.`,
     `- If the lead wants to talk to someone, wants a call, or shares a phone-call preference, use request_callback — a team member will be alerted immediately.`,
-    `- If you're stuck, the lead is upset, or they ask for a human, use handoff_to_human. Don't struggle through.`
+    `- If you're stuck, the lead is upset, or they ask for a human, use handoff_to_human. Don't struggle through.`,
+    `- When the lead shares a lasting personal detail (budget, travel dates, group size, preferences, occupation…), save it with remember_lead_fact so future conversations remember it. Don't announce that you're saving anything.`
   );
+
+  if (agent.exampleDialogue) {
+    sections.push(
+      ``,
+      `HOW YOU SOUND — example conversation. Match this style, rhythm and vocabulary exactly (the content is just an example):`,
+      agent.exampleDialogue
+    );
+  }
 
   if (agent.systemPrompt) {
     sections.push(``, `ADDITIONAL INSTRUCTIONS:`, agent.systemPrompt);
@@ -89,6 +105,10 @@ export function buildChatSystemPrompt(agent, lead, agentTools = []) {
   leadLines.push(`- Source: ${lead.source}`);
   if (lead.metadata && Object.keys(lead.metadata).length > 0) {
     leadLines.push(`- Details from their inquiry: ${JSON.stringify(lead.metadata)}`);
+  }
+  const facts = lead.metadata?.facts;
+  if (facts && Object.keys(facts).length > 0) {
+    leadLines.push(`- Known facts (from earlier conversations — use them naturally, don't recite them): ${Object.entries(facts).map(([k, v]) => `${k}: ${v}`).join('; ')}`);
   }
   if (lead.notes && lead.notes.length > 0) {
     leadLines.push(`- Notes: ${lead.notes.slice(-5).map(n => n.text).join(' | ')}`);
@@ -181,6 +201,18 @@ export function buildChatToolDeclarations(agent, userTools = []) {
           reason: { type: 'STRING', description: 'What the call is about' },
         },
         required: ['reason'],
+      },
+    },
+    {
+      name: 'remember_lead_fact',
+      description: 'Save a lasting fact about this lead (budget, dates, group size, preferences…) so future conversations and calls remember it.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          key: { type: 'STRING', description: 'Short fact key, e.g. "budget", "travel_dates", "group_size"' },
+          value: { type: 'STRING', description: 'The fact, e.g. "around ₹80,000 total"' },
+        },
+        required: ['key', 'value'],
       },
     },
     {

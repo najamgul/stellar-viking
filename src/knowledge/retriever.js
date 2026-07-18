@@ -110,6 +110,9 @@ export async function query(agentId, queryText, topK = 3) {
     return [];
   }
 
+  // Rebuild the in-memory keyword index from persisted vectors if needed
+  keywordIndex.ensureSeeded(agentId, () => vectorStore.getAll(agentId));
+
   // 1. Vector search
   const queryVector = await embedQuery(queryText);
   const vectorResults = vectorStore.search(agentId, queryVector, topK * 3); // Get more candidates

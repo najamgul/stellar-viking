@@ -26,6 +26,23 @@ function tokenize(text) {
 }
 
 /**
+ * Seed the index from a provider if it's empty for this agent.
+ * The keyword index lives in memory only; after a restart it must be
+ * rebuilt from the persisted vector store or hybrid search silently
+ * degrades to vector-only.
+ * @param {string} agentId
+ * @param {() => object[]} provider - Returns [{ text, metadata }]
+ */
+export function ensureSeeded(agentId, provider) {
+  const idx = indexes.get(agentId);
+  if (idx && idx.docs.length > 0) return;
+  const items = provider();
+  if (items && items.length > 0) {
+    addToIndex(agentId, items.map(i => ({ text: i.text, metadata: i.metadata })));
+  }
+}
+
+/**
  * Add documents to the keyword index.
  * @param {string} agentId
  * @param {object[]} items - Array of { text, metadata }

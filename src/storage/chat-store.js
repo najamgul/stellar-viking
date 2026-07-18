@@ -232,6 +232,12 @@ export async function updateConversation(id, updates) {
   return updated;
 }
 
+/** All open conversations in AI mode, across every agent (nudge scan). */
+export async function listOpenAiConversations() {
+  return Array.from(conversations.values())
+    .filter(c => c.status === 'open' && c.mode === 'ai');
+}
+
 export async function listConversations(agentId, { mode, status, limit = 100 } = {}) {
   return Array.from(conversations.values())
     .filter(c => c.agentId === agentId

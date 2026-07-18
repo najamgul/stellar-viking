@@ -92,6 +92,22 @@ export async function generateCallSummary(callId) {
     // Save summary to call record
     await db.updateCall(callId, { summary });
 
+    // Cross-channel memory: write the call outcome onto the chat lead so
+    // the WhatsApp agent knows about the phone conversation.
+    try {
+      const chatStore = await import('../storage/chat-store.js');
+      const lead = await chatStore.getLeadByPhone(call.agentId, call.callerNumber);
+      if (lead) {
+        await chatStore.addLeadNote(lead.id,
+          `Voice call: ${summary.topic}${summary.resolution ? ` (${summary.resolution})` : ''}`, 'system');
+        if (['positive', 'neutral', 'negative'].includes(summary.sentiment)) {
+          await chatStore.updateLead(lead.id, { sentiment: summary.sentiment });
+        }
+      }
+    } catch (err) {
+      logger.warn({ error: err.message }, 'Could not sync call summary to lead');
+    }
+
     logger.info({ callId, topic: summary.topic, sentiment: summary.sentiment }, '📋 Call summary generated');
     return summary;
 
