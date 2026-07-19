@@ -55,6 +55,28 @@ function withConvoLock(conversationId, fn) {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// ─── Outbound text sanitizer ───────────────────────────────────────
+// Models occasionally write tool calls as TEXT instead of invoking them
+// (e.g. "outcall:default_api:update_lead_status{...}"). The lead sees our
+// text verbatim, so anything resembling tool syntax must never be sent.
+
+const TOOL_NAMES_RE = 'query_knowledge_base|update_lead_status|schedule_followup|request_callback|remember_lead_fact|handoff_to_human';
+const TOOL_LEAK_RE = new RegExp(
+  `default_api|tool_code|function_call|^\\s*(outcall|toolcall|tool_call|api_call)\\s*:|^[\\w.]+:[\\w.]+\\{|(${TOOL_NAMES_RE})\\s*[({]`,
+  'i'
+);
+
+function sanitizeReply(text) {
+  if (!text) return '';
+  // Fenced code blocks are never legitimate in a WhatsApp sales chat
+  let out = text.replace(/```[\s\S]*?```/g, ' ');
+  // Drop any line that looks like leaked tool-call syntax
+  out = out.split('\n').filter(line => !TOOL_LEAK_RE.test(line)).join('\n');
+  // Markdown slips (the prompt forbids it, models still emit it)
+  out = out.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/^#{1,6}\s+/gm, '');
+  return out.replace(/\n{3,}/g, '\n\n').trim();
+}
+
 // ─── Inbound entry point ───────────────────────────────────────────
 
 /**
@@ -233,6 +255,7 @@ export async function runAiTurn(agent, conversationId, leadId, injectedInstructi
 
     const calls = response.functionCalls;
     if (!calls || calls.length === 0) break;
+    if (!response.candidates?.[0]?.content) break;
 
     // Echo the model's turn back VERBATIM — newer Gemini models attach a
     // thoughtSignature to functionCall parts and reject requests that drop it.
@@ -246,7 +269,13 @@ export async function runAiTurn(agent, conversationId, leadId, injectedInstructi
     contents.push({ role: 'user', parts: responseParts });
   }
 
-  const replyText = (response?.text || '').trim();
+  const rawReply = (response?.text || '').trim();
+  const replyText = sanitizeReply(rawReply);
+  if (rawReply && !replyText) {
+    logger.warn({ conversationId }, '🧹 Reply was entirely leaked tool syntax — suppressed');
+  } else if (rawReply.length - replyText.length > 10) {
+    logger.warn({ conversationId }, '🧹 Sanitized leaked tool syntax / markdown from reply');
+  }
   if (replyText) {
     // Mirror the lead: if they sent a voice note, try replying with one
     if (opts.replyWithVoice && config.inworldTtsApiKey) {
@@ -552,7 +581,7 @@ export async function maybeNudge(convo, now = new Date()) {
   if (['closed', 'not_interested', 'callback_requested'].includes(lead.status)) return false;
 
   const hour = getLocalHour(lead.phone, now);
-  if (hour !== null && (hour < 9 || hour >= 21)) return false;
+  if (hour !== null && (hour < config.outreach.startHour || hour >= config.outreach.endHour)) return false;
 
   const agent = await db.getAgent(convo.agentId);
   if (!agent?.whatsappPhoneNumberId) return false;
@@ -622,9 +651,9 @@ export async function maybeReengage(convo, now = new Date()) {
   const sinceInbound = now - new Date(convo.lastInboundAt);
   if (sinceInbound < delays[attempt] * 60 * 60 * 1000) return false;
 
-  // Daytime only — a paid template at 3am is wasted money
+  // Business hours only — a paid template at 3am is wasted money
   const hour = getLocalHour(lead.phone, now);
-  if (hour !== null && (hour < 10 || hour >= 20)) return false;
+  if (hour !== null && (hour < config.outreach.startHour || hour >= config.outreach.endHour)) return false;
 
   const agent = await db.getAgent(convo.agentId);
   if (!agent?.whatsappPhoneNumberId) return false;

@@ -42,6 +42,14 @@ const config = {
     key: process.env.CRM_SYNC_KEY || null,   // sent as x-crm-key header
   },
 
+  // Automated outreach window (lead-local hours). Applies to nudges,
+  // window-savers, re-engagement drips and scheduled follow-ups — NOT to
+  // direct replies (we always answer an incoming message immediately).
+  outreach: {
+    startHour: parseInt(process.env.OUTREACH_START_HOUR || '10', 10),
+    endHour: parseInt(process.env.OUTREACH_END_HOUR || '19', 10),
+  },
+
   // Paid re-engagement drip after the free 24h window closes.
   // Hours since the lead's last message for each PAID template attempt;
   // list length = per-lead spend cap. Requires WHATSAPP_FOLLOWUP_TEMPLATE.

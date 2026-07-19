@@ -35,10 +35,19 @@ export function buildChatSystemPrompt(agent, lead, agentTools = []) {
   );
 
   const localHour = getLocalHour(lead.phone, now);
+  const locale = getPhoneLocale(lead.phone);
   if (localHour !== null) {
     const daypart = localHour < 5 ? 'late night' : localHour < 12 ? 'morning'
       : localHour < 17 ? 'afternoon' : localHour < 21 ? 'evening' : 'night';
     sections.push(`For the lead it is currently ${daypart} (~${localHour}:00 their local time) — greet and phrase accordingly.`);
+  }
+  if (locale?.utcOffset !== null && locale?.utcOffset !== undefined) {
+    const off = locale.utcOffset;
+    const offStr = `${off >= 0 ? '+' : '-'}${String(Math.floor(Math.abs(off))).padStart(2, '0')}:${Math.abs(off) % 1 === 0.5 ? '30' : Math.abs(off) % 1 === 0.75 ? '45' : '00'}`;
+    sections.push(
+      `TIMEZONE: the lead is in ${locale.country}, UTC${offStr}. When they name a time ("4 pm", "kal subah"), they ALWAYS mean THEIR local time. ` +
+      `For schedule_followup, write the ISO datetime WITH their offset — e.g. 4 pm for them = 16:00:00${offStr} — never plain "Z"/UTC unless you have converted correctly.`
+    );
   }
 
   if (agent.language) {
@@ -54,6 +63,10 @@ export function buildChatSystemPrompt(agent, lead, agentTools = []) {
     `- Mirror the lead's tone, language AND script. If they write Hindi/Urdu in Latin letters (Hinglish / Roman Urdu, e.g. "kitna price hai?"), reply the same way in Latin letters — never switch to Devanagari or Urdu script unless they do.`,
     `- To send multiple message bubbles, separate them with a blank line. Use 1-2 bubbles normally, 3 max.`,
     `- Never sound like a call-center script. No "How may I assist you today?"`,
+    ``,
+    `TOOLS ARE INVISIBLE:`,
+    `- Use tools ONLY through the function-calling mechanism. NEVER write a tool name, tool syntax, JSON, code, or anything like "update_lead_status{...}" or "default_api" in your message text — the lead sees your text word for word.`,
+    `- Never narrate what tools you are using ("let me update your status"). Tool use is silent back-office work.`,
     ``,
     `HONESTY:`,
     `- On your very first reply in a conversation, introduce yourself naturally as ${agent.companyName ? `${agent.companyName}'s` : 'the'} assistant.`,
@@ -128,13 +141,17 @@ function buildMoneySection(lead) {
       `- Only quote specific prices that come from the knowledge base, in the exact currency the knowledge base states. Never invent prices or exchange rates.`,
     ];
   }
-  return [
+  const lines = [
     ``,
     `MONEY & CURRENCY:`,
-    `- The lead is messaging from ${locale.country} (${locale.callingCode}). When talking about money in general, use their currency: ${locale.currency} (${locale.symbol}) — e.g. "${locale.symbol}5,000", never dollars by default.`,
+    `- The lead is messaging from ${locale.country} (${locale.callingCode}). ALL money talk is in their currency: ${locale.currency} (${locale.symbol}) — e.g. "${locale.symbol}5,000".`,
     `- Specific prices must come from the knowledge base. Quote them in the exact currency the knowledge base states — do NOT convert between currencies or invent exchange rates. If that differs from the lead's currency, just name the currency clearly.`,
-    `- If asked for a price the knowledge base doesn't have, say you'll confirm with the team rather than guessing a number.`,
+    `- If asked for a price the knowledge base doesn't have, NEVER guess a number — say you'll confirm with the team.`,
   ];
+  if (locale.currency !== 'USD') {
+    lines.push(`- HARD RULE: never write "$" or "USD" to this lead. A dollar price to a ${locale.country} lead is wrong and loses the sale. If a source shows dollars, do not quote it — confirm with the team instead.`);
+  }
+  return lines;
 }
 
 /**
@@ -181,7 +198,7 @@ export function buildChatToolDeclarations(agent, userTools = []) {
         properties: {
           datetime: {
             type: 'STRING',
-            description: 'ISO 8601 datetime for the follow-up, e.g. 2026-07-24T18:00:00Z. Must be in the future.',
+            description: 'ISO 8601 datetime for the follow-up IN THE LEAD\'S LOCAL TIME with their UTC offset (see TIMEZONE in your instructions), e.g. 2026-07-24T16:00:00+05:30 for 4 pm in India. Must be in the future.',
           },
           context: {
             type: 'STRING',

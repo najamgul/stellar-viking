@@ -160,16 +160,16 @@ export function getLocalHour(phone, now = new Date()) {
 }
 
 /**
- * Quiet hours guard: if `when` falls between 21:00 and 09:00 in the lead's
- * local time, return the next 10:00 local as a Date; else return `when`.
- * Unknown timezone → unchanged.
+ * Business-hours guard for automated outreach: if `when` falls outside
+ * 10:00-19:00 in the lead's local time, return the next 10:00 local;
+ * else return `when`. Unknown timezone → unchanged.
  */
 export function deferToWakingHours(phone, when) {
   const locale = getPhoneLocale(phone);
   if (!locale || locale.utcOffset === null || locale.utcOffset === undefined) return when;
   const hoursUtc = when.getTime() / 3600000;
   const localHour = ((hoursUtc + locale.utcOffset) % 24 + 24) % 24;
-  if (localHour >= 9 && localHour < 21) return when;
+  if (localHour >= 10 && localHour < 19) return when;
   // Hours to advance to reach 10:00 local
   const delta = (10 - localHour + 24) % 24;
   return new Date(when.getTime() + delta * 3600000);
