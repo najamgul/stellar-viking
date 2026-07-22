@@ -155,6 +155,83 @@ function buildMoneySection(lead) {
 }
 
 /**
+ * Neutral, provider-agnostic tool spec for the chat channel.
+ * Returns [{ name, description, parameters: { prop: {type, description} }, required: [...] }].
+ * Each LLM provider converts this into its own format (Gemini functionDeclarations,
+ * or the Replicate in-prompt tool protocol).
+ */
+export function buildChatTools(agent, userTools = []) {
+  const tools = [
+    {
+      name: 'query_knowledge_base',
+      description: `Search the ${agent.companyName || 'company'} knowledge base for services, products, pricing, policies, FAQ.`,
+      parameters: { query: { type: 'string', description: 'The question or topic to search for' } },
+      required: ['query'],
+    },
+    {
+      name: 'update_lead_status',
+      description: "Update this lead's pipeline status and sentiment. Call whenever your read of the lead changes.",
+      parameters: {
+        status: { type: 'string', description: 'One of: engaged, qualified, not_interested, closed' },
+        sentiment: { type: 'string', description: 'One of: positive, neutral, negative' },
+        note: { type: 'string', description: 'Optional one-line note for the sales team' },
+      },
+      required: ['status', 'sentiment'],
+    },
+    {
+      name: 'schedule_followup',
+      description: 'Schedule an automatic follow-up message at a specific future time the lead asked for.',
+      parameters: {
+        datetime: { type: 'string', description: "ISO 8601 datetime IN THE LEAD'S LOCAL TIME with their UTC offset (see TIMEZONE), e.g. 2026-07-24T16:00:00+05:30. Must be in the future." },
+        context: { type: 'string', description: 'What the follow-up should be about, so the future message makes sense' },
+      },
+      required: ['datetime', 'context'],
+    },
+    {
+      name: 'request_callback',
+      description: 'The lead wants a phone call from a human. Alerts the sales team immediately.',
+      parameters: {
+        preferred_time: { type: 'string', description: 'When the lead wants to be called (their words or ISO datetime)' },
+        reason: { type: 'string', description: 'What the call is about' },
+      },
+      required: ['reason'],
+    },
+    {
+      name: 'remember_lead_fact',
+      description: 'Save a lasting fact about this lead (budget, dates, group size, preferences…) so future conversations remember it.',
+      parameters: {
+        key: { type: 'string', description: 'Short fact key, e.g. "budget", "travel_dates", "group_size"' },
+        value: { type: 'string', description: 'The fact, e.g. "around ₹80,000 total"' },
+      },
+      required: ['key', 'value'],
+    },
+    {
+      name: 'handoff_to_human',
+      description: 'Hand this conversation to a human team member and stop replying automatically. Use when stuck, when the lead is upset, or when they ask for a person.',
+      parameters: { reason: { type: 'string', description: 'Why you are handing off' } },
+      required: ['reason'],
+    },
+  ];
+
+  for (const tool of userTools) {
+    if (tool.isBuiltIn) continue;
+    const props = {};
+    const schemaProps = tool.parameters?.properties || {};
+    for (const [k, v] of Object.entries(schemaProps)) {
+      props[k] = { type: (v.type || 'string').toLowerCase(), description: v.description || '' };
+    }
+    tools.push({
+      name: tool.name,
+      description: tool.description,
+      parameters: props,
+      required: tool.parameters?.required || [],
+    });
+  }
+
+  return tools;
+}
+
+/**
  * Gemini-format tool declarations for the chat channel.
  * Returns [{ functionDeclarations: [...] }].
  */

@@ -17,7 +17,8 @@ import logger from '../utils/logger.js';
 import * as db from '../storage/database.js';
 import * as chatStore from '../storage/chat-store.js';
 import * as whatsapp from '../channels/whatsapp.js';
-import { buildChatSystemPrompt, buildChatToolDeclarations } from './chat-prompt.js';
+import { buildChatSystemPrompt, buildChatTools } from './chat-prompt.js';
+import { getChatProvider } from './llm/index.js';
 import { deferToWakingHours, getLocalHour } from './phone-locale.js';
 import { query as queryKnowledge } from '../knowledge/retriever.js';
 import { executeTool } from './tool-dispatcher.js';
@@ -227,49 +228,39 @@ export async function runAiTurn(agent, conversationId, leadId, injectedInstructi
 
   const agentTools = await db.listTools(agent.id);
   const systemInstruction = buildChatSystemPrompt(agent, lead, agentTools);
-  const tools = buildChatToolDeclarations(agent, agentTools);
+  const tools = buildChatTools(agent, agentTools);
 
   const history = await chatStore.listMessages(conversationId, MAX_HISTORY);
-  const contents = history
+  const messages = history
     .filter(m => m.body)
     .map(m => ({
-      role: m.direction === 'in' ? 'user' : 'model',
-      parts: [{ text: m.sender === 'bd' ? `[team member]: ${m.body}` : m.body }],
+      role: m.direction === 'in' ? 'user' : 'assistant',
+      content: m.sender === 'bd' ? `[team member]: ${m.body}` : m.body,
     }));
 
   if (injectedInstruction) {
-    contents.push({ role: 'user', parts: [{ text: `[SYSTEM NOTE — not from the lead]: ${injectedInstruction}` }] });
+    messages.push({ role: 'user', content: `[SYSTEM NOTE — not from the lead]: ${injectedInstruction}` });
   }
-  if (contents.length === 0) return;
+  if (messages.length === 0) return;
 
-  const client = getClient();
   const toolContext = { agent, conversation: convo, lead, handedOff: false };
-  let response;
+  const provider = getChatProvider(agent);
 
-  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    response = await client.models.generateContent({
-      model: config.chatModel,
-      contents,
-      config: { systemInstruction, tools, temperature: 0.8 },
+  let rawReply = '';
+  try {
+    const result = await provider.runConversation({
+      system: systemInstruction,
+      messages,
+      tools,
+      temperature: 0.8,
+      maxToolRounds: MAX_TOOL_ROUNDS,
+      executeTool: (name, args) => executeChatTool(name, args, toolContext),
     });
-
-    const calls = response.functionCalls;
-    if (!calls || calls.length === 0) break;
-    if (!response.candidates?.[0]?.content) break;
-
-    // Echo the model's turn back VERBATIM — newer Gemini models attach a
-    // thoughtSignature to functionCall parts and reject requests that drop it.
-    contents.push(response.candidates[0].content);
-
-    const responseParts = [];
-    for (const call of calls) {
-      const result = await executeChatTool(call.name, call.args || {}, toolContext);
-      responseParts.push({ functionResponse: { name: call.name, response: { result } } });
-    }
-    contents.push({ role: 'user', parts: responseParts });
+    rawReply = (result?.text || '').trim();
+  } catch (err) {
+    logger.error({ conversationId, provider: provider.name, error: err.message }, 'LLM turn failed');
+    return;
   }
-
-  const rawReply = (response?.text || '').trim();
   const replyText = sanitizeReply(rawReply);
   if (rawReply && !replyText) {
     logger.warn({ conversationId }, '🧹 Reply was entirely leaked tool syntax — suppressed');

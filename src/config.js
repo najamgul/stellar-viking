@@ -35,6 +35,19 @@ const config = {
   whatsappTemplateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en',
   chatModel: process.env.CHAT_MODEL || 'gemini-flash-latest',
 
+  // Chat LLM provider — 'gemini' (default, also handles voice-note
+  // transcription) or 'replicate' (DeepSeek et al. via Replicate; text only,
+  // tools via in-prompt protocol). Set per-agent via agent.chatProvider.
+  chat: {
+    provider: (process.env.CHAT_PROVIDER || 'gemini').toLowerCase(),
+  },
+  replicate: {
+    apiToken: process.env.REPLICATE_API_TOKEN || null,
+    model: process.env.REPLICATE_MODEL || 'deepseek-ai/deepseek-v3.1',
+    maxTokens: parseInt(process.env.REPLICATE_MAX_TOKENS || '1500', 10),
+    temperature: parseFloat(process.env.REPLICATE_TEMPERATURE || '0.7'),
+  },
+
   // CRM sync connector (global default — agents can override with
   // agent.crmSyncUrl / agent.crmSyncKey; unset = feature off)
   crmSync: {
