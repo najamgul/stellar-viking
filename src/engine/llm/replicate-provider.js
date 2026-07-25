@@ -69,14 +69,24 @@ function stripReasoning(text) {
   return t.trim();
 }
 
-/** Extract tool calls from a model reply, or null. Handles our §TOOL protocol,
- *  fenced/loose JSON, and DeepSeek's native <｜tool▁calls▁begin｜> format. */
+/** Extract tool calls from a model reply, or null. Handles our §TOOL protocol
+ *  (including MULTIPLE §TOOL lines in one reply — models do this despite
+ *  instructions), fenced/loose JSON, and DeepSeek's native token format. */
 function extractToolCalls(text) {
-  // 1. Our protocol: §TOOL { ... }
+  // 1. Our protocol — parse EVERY §TOOL occurrence, line by line first
+  const collected = [];
+  for (const line of text.split('\n')) {
+    const idx = line.indexOf(TOOL_MARKER);
+    if (idx === -1) continue;
+    const calls = parseCallsJson(line.slice(idx + TOOL_MARKER.length));
+    if (calls) collected.push(...calls);
+  }
+  if (collected.length) return collected;
+
+  // Single marker with the JSON spilling across lines
   const markerIdx = text.indexOf(TOOL_MARKER);
   if (markerIdx !== -1) {
-    const after = text.slice(markerIdx + TOOL_MARKER.length);
-    const calls = parseCallsJson(after);
+    const calls = parseCallsJson(text.slice(markerIdx + TOOL_MARKER.length));
     if (calls) return calls;
   }
   // 2. Native DeepSeek token format
@@ -91,17 +101,48 @@ function extractToolCalls(text) {
   return null;
 }
 
-function parseCallsJson(s) {
+/** True if the reply contains tool-protocol residue that must never be sent. */
+export function containsToolProtocol(text) {
+  return text.includes(TOOL_MARKER) || text.includes(RESULT_MARKER) || text.includes('§');
+}
+
+/** Balanced-brace scan: extract the first complete JSON object in `s`. */
+function firstJsonObject(s) {
   const start = s.indexOf('{');
-  const end = s.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) return null;
+  if (start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i];
+    if (esc) { esc = false; continue; }
+    if (inStr) {
+      if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function parseCallsJson(s) {
+  const jsonStr = firstJsonObject(s);
+  if (!jsonStr) return null;
   try {
-    const obj = JSON.parse(s.slice(start, end + 1));
+    const obj = JSON.parse(jsonStr);
     const arr = obj.calls || obj.tool_calls;
     if (Array.isArray(arr) && arr.length) {
       return arr
         .map(c => ({ name: c.name, arguments: c.arguments || c.args || c.parameters || {} }))
         .filter(c => c.name);
+    }
+    // Single-call shape: {"name":"...","arguments":{...}}
+    if (obj.name && (obj.arguments || obj.args)) {
+      return [{ name: obj.name, arguments: obj.arguments || obj.args || {} }];
     }
   } catch { /* not valid JSON */ }
   return null;
@@ -177,6 +218,14 @@ export const replicateProvider = {
       const calls = extractToolCalls(reply);
 
       if (!calls) {
+        // HARD GUARANTEE: if the reply contains any tool-protocol residue we
+        // couldn't parse, suppress the whole turn — never send it to a lead.
+        if (containsToolProtocol(reply)) {
+          logger.warn({ preview: reply.slice(0, 120) },
+            'Replicate reply contained unparseable tool protocol — suppressed');
+          finalText = '';
+          break;
+        }
         finalText = reply;
         break;
       }

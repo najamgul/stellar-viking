@@ -62,8 +62,11 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 // text verbatim, so anything resembling tool syntax must never be sent.
 
 const TOOL_NAMES_RE = 'query_knowledge_base|update_lead_status|schedule_followup|request_callback|remember_lead_fact|handoff_to_human';
+// Catches: Gemini text-leaks (outcall:default_api:...{...}), the Replicate
+// §TOOL/§RESULT protocol (any line containing § — never legitimate chat),
+// JSON tool-call shapes ("calls":[...], quoted tool names), and code fences.
 const TOOL_LEAK_RE = new RegExp(
-  `default_api|tool_code|function_call|^\\s*(outcall|toolcall|tool_call|api_call)\\s*:|^[\\w.]+:[\\w.]+\\{|(${TOOL_NAMES_RE})\\s*[({]`,
+  `§|default_api|tool_code|function_call|"calls"\\s*:|"tool_calls"\\s*:|^\\s*(outcall|toolcall|tool_call|api_call)\\s*:|^[\\w.]+:[\\w.]+\\{|(${TOOL_NAMES_RE})\\s*[({]|"(${TOOL_NAMES_RE})"`,
   'i'
 );
 
