@@ -83,16 +83,27 @@ async function tick() {
     // Silence-nudge + re-engagement scan
     if (Date.now() - lastNudgeScan > NUDGE_SCAN_EVERY_MS) {
       lastNudgeScan = Date.now();
+      // Cap paid template sends per scan: a backlog burst of 50+ marketing
+      // templates in seconds trips Meta's per-user limits (error 131049)
+      // and hurts the number's quality rating. Remainder goes next scan.
+      const MAX_DRIPS_PER_SCAN = parseInt(process.env.REENGAGE_MAX_PER_SCAN || '8', 10);
+      let dripsThisScan = 0;
       const openConvos = await chatStore.listOpenAiConversations();
       for (const convo of openConvos) {
         try {
           // Free-window nudges first; once the window is closed, the
           // bounded paid drip takes over.
           const nudged = await maybeNudge(convo);
-          if (!nudged) await maybeReengage(convo);
+          if (!nudged && dripsThisScan < MAX_DRIPS_PER_SCAN) {
+            const dripped = await maybeReengage(convo);
+            if (dripped) dripsThisScan += 1;
+          }
         } catch (err) {
           logger.error({ conversationId: convo.id, error: err.message }, 'Nudge/re-engage failed');
         }
+      }
+      if (dripsThisScan >= MAX_DRIPS_PER_SCAN) {
+        logger.info({ cap: MAX_DRIPS_PER_SCAN }, 'Re-engagement cap reached this scan — rest deferred');
       }
     }
   } catch (err) {

@@ -18,7 +18,7 @@ import * as db from '../storage/database.js';
 import * as chatStore from '../storage/chat-store.js';
 import * as whatsapp from '../channels/whatsapp.js';
 import { buildChatSystemPrompt, buildChatTools } from './chat-prompt.js';
-import { getChatProvider } from './llm/index.js';
+import { getChatProvider, getFallbackProvider } from './llm/index.js';
 import { deferToWakingHours, getLocalHour } from './phone-locale.js';
 import { query as queryKnowledge } from '../knowledge/retriever.js';
 import { executeTool } from './tool-dispatcher.js';
@@ -249,20 +249,32 @@ export async function runAiTurn(agent, conversationId, leadId, injectedInstructi
   const toolContext = { agent, conversation: convo, lead, handedOff: false };
   const provider = getChatProvider(agent);
 
+  const runWith = (p) => p.runConversation({
+    system: systemInstruction,
+    messages,
+    tools,
+    temperature: 0.8,
+    maxToolRounds: MAX_TOOL_ROUNDS,
+    executeTool: (name, args) => executeChatTool(name, args, toolContext),
+  });
+
   let rawReply = '';
   try {
-    const result = await provider.runConversation({
-      system: systemInstruction,
-      messages,
-      tools,
-      temperature: 0.8,
-      maxToolRounds: MAX_TOOL_ROUNDS,
-      executeTool: (name, args) => executeChatTool(name, args, toolContext),
-    });
+    const result = await runWith(provider);
     rawReply = (result?.text || '').trim();
   } catch (err) {
     logger.error({ conversationId, provider: provider.name, error: err.message }, 'LLM turn failed');
-    return;
+    // Emergency failover — the other provider takes this turn
+    const fallback = getFallbackProvider(provider);
+    if (!fallback) return;
+    try {
+      logger.warn({ conversationId, from: provider.name, to: fallback.name }, '🔁 Failing over LLM provider for this turn');
+      const result = await runWith(fallback);
+      rawReply = (result?.text || '').trim();
+    } catch (err2) {
+      logger.error({ conversationId, provider: fallback.name, error: err2.message }, 'Fallback LLM turn also failed');
+      return;
+    }
   }
   const replyText = sanitizeReply(rawReply);
   if (rawReply && !replyText) {

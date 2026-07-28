@@ -22,3 +22,15 @@ export function getChatProvider(agent) {
   }
   return geminiProvider;
 }
+
+/**
+ * Emergency fallback: if the primary provider fails (e.g. Gemini billing
+ * suspension → 403), the other configured provider takes the turn. A
+ * slightly different voice beats a silent bot; recovery is automatic once
+ * the primary heals.
+ */
+export function getFallbackProvider(primary) {
+  if (primary.name !== 'replicate' && config.replicate.apiToken) return replicateProvider;
+  if (primary.name !== 'gemini' && config.geminiApiKey) return geminiProvider;
+  return null;
+}
