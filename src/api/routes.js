@@ -29,27 +29,42 @@ export function registerApiRoutes(app) {
 
   // ─── Agents ──────────────────────────────────────────────────────
 
+  // A per-agent WhatsApp token is a write-only credential: responses carry a
+  // masked marker instead, and a PUT that echoes the marker back leaves the
+  // stored token untouched (so the admin form can round-trip the agent).
+  const TOKEN_MASK_PREFIX = '****';
+  const redactAgent = (a) => {
+    if (!a || !a.whatsappAccessToken) return a;
+    return { ...a, whatsappAccessToken: `${TOKEN_MASK_PREFIX}${String(a.whatsappAccessToken).slice(-4)}` };
+  };
+  const stripMaskedToken = (body) => {
+    if (!body || typeof body !== 'object') return body;
+    const { whatsappAccessToken, ...rest } = body;
+    if (typeof whatsappAccessToken === 'string' && whatsappAccessToken.startsWith(TOKEN_MASK_PREFIX)) return rest;
+    return body;
+  };
+
   app.get('/api/agents', async () => {
     const agents = await db.listAgents();
-    return { agents };
+    return { agents: agents.map(redactAgent) };
   });
 
   app.post('/api/agents', async (request, reply) => {
-    const agent = await db.createAgent(request.body);
+    const agent = await db.createAgent(stripMaskedToken(request.body));
     reply.code(201);
-    return { agent };
+    return { agent: redactAgent(agent) };
   });
 
   app.get('/api/agents/:id', async (request, reply) => {
     const agent = await db.getAgent(request.params.id);
     if (!agent) return reply.code(404).send({ error: 'Agent not found' });
-    return { agent };
+    return { agent: redactAgent(agent) };
   });
 
   app.put('/api/agents/:id', async (request, reply) => {
-    const agent = await db.updateAgent(request.params.id, request.body);
+    const agent = await db.updateAgent(request.params.id, stripMaskedToken(request.body));
     if (!agent) return reply.code(404).send({ error: 'Agent not found' });
-    return { agent };
+    return { agent: redactAgent(agent) };
   });
 
   app.delete('/api/agents/:id', async (request, reply) => {

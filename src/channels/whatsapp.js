@@ -14,12 +14,37 @@
 
 import crypto from 'crypto';
 import config from '../config.js';
+import * as db from '../storage/database.js';
 import logger from '../utils/logger.js';
 
 const GRAPH_BASE = 'https://graph.facebook.com';
 
 export function isConfigured() {
   return Boolean(config.whatsappAccessToken);
+}
+
+// ─── Per-tenant credentials ────────────────────────────────────────
+// Every outbound call is addressed to a phone_number_id, and the agent
+// mapped to that id may carry its own access token / template (see
+// database.js createAgent). Fall back to the global env values.
+
+async function agentFor(phoneNumberId) {
+  if (!phoneNumberId) return null;
+  try { return await db.getAgentByWhatsappId(phoneNumberId); } catch { return null; }
+}
+
+async function tokenFor(phoneNumberId) {
+  const agent = await agentFor(phoneNumberId);
+  return agent?.whatsappAccessToken || config.whatsappAccessToken;
+}
+
+/** Re-engagement template for this number: { name, language } (name may be null). */
+export async function followupTemplateFor(phoneNumberId) {
+  const agent = await agentFor(phoneNumberId);
+  return {
+    name: agent?.whatsappFollowupTemplate || config.whatsappFollowupTemplate || null,
+    language: agent?.whatsappTemplateLanguage || config.whatsappTemplateLanguage,
+  };
 }
 
 // ─── Webhook security ──────────────────────────────────────────────
@@ -139,10 +164,11 @@ export function parseWebhook(body) {
 
 async function graphPost(phoneNumberId, payload) {
   const url = `${GRAPH_BASE}/${config.whatsappApiVersion}/${phoneNumberId}/messages`;
+  const token = await tokenFor(phoneNumberId);
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${config.whatsappAccessToken}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
@@ -208,16 +234,17 @@ export async function sendReaction(phoneNumberId, to, messageId, emoji) {
  * (requires auth) → bytes.
  * @returns {{ base64: string, mimeType: string }}
  */
-export async function downloadMedia(mediaId) {
+export async function downloadMedia(mediaId, phoneNumberId = null) {
+  const token = await tokenFor(phoneNumberId);
   const metaRes = await fetch(`${GRAPH_BASE}/${config.whatsappApiVersion}/${mediaId}`, {
-    headers: { 'Authorization': `Bearer ${config.whatsappAccessToken}` },
+    headers: { 'Authorization': `Bearer ${token}` },
   });
   const meta = await metaRes.json();
   if (!metaRes.ok || !meta.url) {
     throw new Error(`Media lookup failed: ${meta?.error?.message || metaRes.status}`);
   }
   const fileRes = await fetch(meta.url, {
-    headers: { 'Authorization': `Bearer ${config.whatsappAccessToken}` },
+    headers: { 'Authorization': `Bearer ${token}` },
   });
   if (!fileRes.ok) throw new Error(`Media download failed: HTTP ${fileRes.status}`);
   const buffer = Buffer.from(await fileRes.arrayBuffer());
@@ -233,7 +260,7 @@ export async function uploadAudio(phoneNumberId, base64Audio, mimeType = 'audio/
     mimeType.includes('mpeg') ? 'voice.mp3' : 'voice.ogg');
   const res = await fetch(`${GRAPH_BASE}/${config.whatsappApiVersion}/${phoneNumberId}/media`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${config.whatsappAccessToken}` },
+    headers: { 'Authorization': `Bearer ${await tokenFor(phoneNumberId)}` },
     body: form,
   });
   const data = await res.json();
@@ -290,10 +317,11 @@ export async function sendSmart(phoneNumberId, to, body, lastInboundAt, template
     const id = await sendText(phoneNumberId, to, body);
     return { providerMessageId: id, usedTemplate: false };
   }
-  if (!config.whatsappFollowupTemplate) {
-    throw new Error('24h window closed and no WHATSAPP_FOLLOWUP_TEMPLATE configured — cannot send');
+  const tpl = await followupTemplateFor(phoneNumberId);
+  if (!tpl.name) {
+    throw new Error('24h window closed and no follow-up template configured for this number — cannot send');
   }
-  const id = await sendTemplate(phoneNumberId, to, config.whatsappFollowupTemplate, templateVars);
+  const id = await sendTemplate(phoneNumberId, to, tpl.name, templateVars, tpl.language);
   return { providerMessageId: id, usedTemplate: true };
 }
 

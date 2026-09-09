@@ -86,8 +86,15 @@ function sanitizeReply(text) {
 /**
  * Handle one normalized inbound message event from the WhatsApp webhook.
  * Never throws — webhook must always 200.
+ *
+ * @param {object} [opts]
+ * @param {boolean|null} [opts.aiPaused] - set by a relaying CRM that owns the
+ *   number's inbox and its own "bot paused" switch (Tohund Guide). true ⇒
+ *   force this conversation into human mode, false ⇒ back to AI mode; the
+ *   CRM's switch is the source of truth, so its state is mirrored on every
+ *   relayed message rather than only on takeover/release API calls.
  */
-export async function processInboundMessage(event) {
+export async function processInboundMessage(event, opts = {}) {
   try {
     const agent = await db.getAgentByWhatsappId(event.phoneNumberId);
     if (!agent) {
@@ -121,6 +128,17 @@ export async function processInboundMessage(event) {
       return;
     }
 
+    // Mirror the relaying CRM's pause switch onto our mode (see JSDoc)
+    if (typeof opts.aiPaused === 'boolean') {
+      const wanted = opts.aiPaused ? 'human' : 'ai';
+      if (convo.status === 'open' && convo.mode !== wanted && convo.mode !== 'paused') {
+        await chatStore.updateConversation(convo.id, { mode: wanted });
+        convo.mode = wanted;
+        broadcast('chat.mode_changed', { conversationId: convo.id, agentId: agent.id, mode: wanted, by: 'crm' });
+        logger.info({ conversationId: convo.id, mode: wanted }, 'Mode synced from relaying CRM');
+      }
+    }
+
     // The lead replied — reset the paid re-engagement drip budget
     if (convo.dripCount || convo.dripClosedAt) {
       await chatStore.updateConversation(convo.id, { dripCount: 0, lastDripAt: null, dripClosedAt: null });
@@ -139,7 +157,7 @@ export async function processInboundMessage(event) {
       msgType = 'audio';
       leadSentVoiceNote = event.isVoiceNote;
       try {
-        const media = await whatsapp.downloadMedia(event.mediaId);
+        const media = await whatsapp.downloadMedia(event.mediaId, event.phoneNumberId);
         const transcript = await transcribeAudio(media.base64, media.mimeType);
         bodyText = transcript ? `🎤 ${transcript}` : '[voice note — could not transcribe]';
       } catch (err) {
@@ -625,9 +643,16 @@ const DRIP_GRACE_MS = 48 * 60 * 60 * 1000; // after final attempt, wait 48h befo
  * closed locally and marked unresponsive in the CRM — never spend again.
  */
 export async function maybeReengage(convo, now = new Date()) {
-  if (!config.reengage.enabled || !config.whatsappFollowupTemplate) return false;
+  if (!config.reengage.enabled) return false;
   if (!convo.lastInboundAt) return false;
   if (whatsapp.isWindowOpen(convo.lastInboundAt)) return false; // free window — nudges handle it
+
+  const agent = await db.getAgent(convo.agentId);
+  if (!agent?.whatsappPhoneNumberId) return false;
+  // Template is per number: an agent whose WABA has no approved
+  // re-engagement template simply never drips (no paid sends, no errors).
+  const tpl = await whatsapp.followupTemplateFor(agent.whatsappPhoneNumberId);
+  if (!tpl.name) return false;
 
   const lead = await chatStore.getLead(convo.leadId);
   if (!lead || lead.optedOut) return false;
@@ -645,10 +670,7 @@ export async function maybeReengage(convo, now = new Date()) {
       await chatStore.addLeadNote(lead.id,
         `Auto-closed: no reply after ${delays.length} re-engagement attempts`, 'system');
       broadcast('chat.lead_updated', { leadId: lead.id, agentId: convo.agentId, status: 'not_interested' });
-      const agent = await db.getAgent(convo.agentId);
-      if (agent) {
-        syncToCrm(agent, 'lead.unresponsive', { lead: { ...lead, status: 'not_interested' } });
-      }
+      syncToCrm(agent, 'lead.unresponsive', { lead: { ...lead, status: 'not_interested' } });
       logger.info({ conversationId: convo.id }, '💤 Lead marked unresponsive — drip budget exhausted');
     }
     return false;
@@ -661,9 +683,6 @@ export async function maybeReengage(convo, now = new Date()) {
   const hour = getLocalHour(lead.phone, now);
   if (hour !== null && (hour < config.outreach.startHour || hour >= config.outreach.endHour)) return false;
 
-  const agent = await db.getAgent(convo.agentId);
-  if (!agent?.whatsappPhoneNumberId) return false;
-
   const context = convo.summary || 'your inquiry with us';
   const vars = [lead.name || 'there', context];
   const { providerMessageId } = await whatsapp.sendSmart(
@@ -674,7 +693,7 @@ export async function maybeReengage(convo, now = new Date()) {
     direction: 'out',
     sender: 'ai',
     type: 'template',
-    body: `[re-engage ${attempt + 1}/${delays.length}: ${config.whatsappFollowupTemplate}] ${vars.join(' · ')}`,
+    body: `[re-engage ${attempt + 1}/${delays.length}: ${tpl.name}] ${vars.join(' · ')}`,
     providerMessageId,
   });
   await chatStore.updateConversation(convo.id, {
@@ -714,13 +733,14 @@ export async function executeFollowupJob(job) {
   const vars = [lead.name || 'there', context];
   const { providerMessageId } = await whatsapp.sendSmart(
     agent.whatsappPhoneNumberId, lead.phone, null, convo.lastInboundAt, vars);
+  const tpl = await whatsapp.followupTemplateFor(agent.whatsappPhoneNumberId);
 
   const msg = await chatStore.addMessage({
     conversationId: convo.id,
     direction: 'out',
     sender: 'ai',
     type: 'template',
-    body: `[template: ${config.whatsappFollowupTemplate}] ${vars.join(' · ')}`,
+    body: `[template: ${tpl.name}] ${vars.join(' · ')}`,
     providerMessageId,
   });
   broadcast('chat.message', {

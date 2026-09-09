@@ -60,6 +60,42 @@ export function registerChatRoutes(app) {
     });
   });
 
+  // ─── Webhook relay (API-key auth) ────────────────────────────────
+  // For a business whose own backend already owns the Meta webhook (it runs
+  // the team inbox, push alerts, etc. — Tohund Guide's worker does). That
+  // backend stores the inbound first, then relays the UNMODIFIED Meta
+  // webhook body here; we run the same pipeline as /webhook/whatsapp, and
+  // the AI reply goes straight back out via Graph. Events flow back to the
+  // relaying backend through the CRM connector (agent.crmSyncUrl).
+  //
+  //   POST /api/relay/whatsapp   { payload: <Meta webhook body>, aiPaused?: boolean }
+  //
+  // `aiPaused` mirrors the CRM's own per-conversation bot switch (see
+  // processInboundMessage). Auth is the normal /api guard (sv_live_ key).
+  app.post('/api/relay/whatsapp', async (request, reply) => {
+    const { payload, aiPaused } = request.body || {};
+    if (!payload || payload.object !== 'whatsapp_business_account') {
+      return reply.code(400).send({ error: 'payload must be a Meta WhatsApp webhook body' });
+    }
+    const events = whatsapp.parseWebhook(payload);
+    const messages = events.filter(e => e.kind === 'message');
+    const statuses = events.filter(e => e.kind === 'status');
+    const numbers = [...new Set(messages.map(e => e.phoneNumberId).filter(Boolean))];
+    const mapped = [];
+    for (const id of numbers) if (await db.getAgentByWhatsappId(id)) mapped.push(id);
+
+    // Ack fast, process async — the AI turn can take 10–30s and the relaying
+    // backend has already answered Meta.
+    reply.send({ received: true, messages: messages.length, statuses: statuses.length, mappedNumbers: mapped });
+    setImmediate(async () => {
+      const opts = typeof aiPaused === 'boolean' ? { aiPaused } : {};
+      for (const event of events) {
+        if (event.kind === 'message') await processInboundMessage(event, opts);
+        else if (event.kind === 'status') await processStatusEvent(event);
+      }
+    });
+  });
+
   // ─── Public lead capture (landing pages / campaign forms) ────────
   // Returns a wa.me deep link so the lead opens the chat themselves —
   // their first message opens the 24h window (opt-in compliant, no

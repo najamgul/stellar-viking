@@ -147,6 +147,14 @@ export async function createAgent(data) {
     phoneNumber: data.phoneNumber || null,
     whatsappPhoneNumberId: data.whatsappPhoneNumberId || null,  // Meta Cloud API phone_number_id
     whatsappNumber: data.whatsappNumber || null,                // display number for wa.me links
+    // Per-agent Meta credentials. One deployment can serve numbers that live
+    // in DIFFERENT Meta business portfolios (e.g. TheBrandFriend and Tohund
+    // Guide): a system-user token only reaches the WABAs of its own
+    // portfolio, so the global WHATSAPP_ACCESS_TOKEN cannot send from a
+    // second business's number. Null ⇒ fall back to the global env values.
+    whatsappAccessToken: data.whatsappAccessToken || null,
+    whatsappFollowupTemplate: data.whatsappFollowupTemplate || null,   // overrides WHATSAPP_FOLLOWUP_TEMPLATE
+    whatsappTemplateLanguage: data.whatsappTemplateLanguage || null,   // overrides WHATSAPP_TEMPLATE_LANGUAGE
     webhookUrl: data.webhookUrl || null,
     crmSyncUrl: data.crmSyncUrl || null,    // per-agent CRM connector target (overrides CRM_SYNC_URL)
     crmSyncKey: data.crmSyncKey || null,    // per-agent CRM connector key (overrides CRM_SYNC_KEY)
