@@ -22,6 +22,17 @@ const EMBED_BATCH_SIZE = 20;
 const VECTOR_WEIGHT = 0.70;   // 70% vector similarity
 const KEYWORD_WEIGHT = 0.30;  // 30% keyword (BM25)
 
+// Embeddings come from the Gemini API, which has gone dark on this
+// deployment before (billing 403, quota 429). The knowledge base must keep
+// working without it: chunks are then stored with `vector: null` and
+// retrieval runs on the BM25 index alone. Same at query time — an
+// embedding failure degrades to keyword search instead of a tool error.
+function isEmbeddingUnavailable(err) {
+  return /GEMINI_API_KEY not configured|Embedding API error (429|403|401|5\d\d)|quota|billing|fetch failed|ECONN|ETIMEDOUT/i
+    .test(String(err?.message || ''));
+}
+let _lastQueryEmbedWarn = 0;
+
 /**
  * Index a document: chunk it, embed chunks, store in both indexes.
  * 
@@ -52,10 +63,16 @@ export async function indexDocument(agentId, docId, content, fileName) {
 
   // 2. Embed chunks in batches
   const allItems = [];
+  let keywordOnly = false;
 
   for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
     const batch = chunks.slice(i, i + EMBED_BATCH_SIZE);
     const texts = batch.map(c => c.text);
+
+    if (keywordOnly) {
+      for (const c of batch) allItems.push({ vector: null, text: c.text, metadata: c.metadata });
+      continue;
+    }
 
     try {
       const vectors = await embedBatch(texts);
@@ -68,6 +85,17 @@ export async function indexDocument(agentId, docId, content, fileName) {
         });
       }
     } catch (error) {
+      if (isEmbeddingUnavailable(error)) {
+        // Degrade the WHOLE document to keyword-only so retrieval stays
+        // consistent (a half-embedded doc would rank its embedded half
+        // above the rest for every query).
+        logger.warn({ docId, batchStart: i, error: error.message },
+          'Embedding unavailable — indexing document keyword-only (BM25)');
+        keywordOnly = true;
+        for (const item of allItems) item.vector = null;
+        for (const c of batch) allItems.push({ vector: null, text: c.text, metadata: c.metadata });
+        continue;
+      }
       logger.error({ docId, batchStart: i, error: error.message }, 'Embedding batch failed');
       await db.updateDocument(agentId, docId, { status: 'error' });
       throw error;
@@ -87,9 +115,11 @@ export async function indexDocument(agentId, docId, content, fileName) {
   await db.updateDocument(agentId, docId, {
     status: 'ready',
     chunkCount: chunks.length,
+    retrieval: keywordOnly ? 'keyword' : 'hybrid',
   });
 
-  logger.info({ agentId, docId, chunks: chunks.length }, '✅ Document indexed (vector + keyword)');
+  logger.info({ agentId, docId, chunks: chunks.length, retrieval: keywordOnly ? 'keyword' : 'hybrid' },
+    keywordOnly ? '✅ Document indexed (keyword-only — embeddings unavailable)' : '✅ Document indexed (vector + keyword)');
 }
 
 /**
@@ -113,9 +143,21 @@ export async function query(agentId, queryText, topK = 3) {
   // Rebuild the in-memory keyword index from persisted vectors if needed
   keywordIndex.ensureSeeded(agentId, () => vectorStore.getAll(agentId));
 
-  // 1. Vector search
-  const queryVector = await embedQuery(queryText);
-  const vectorResults = vectorStore.search(agentId, queryVector, topK * 3); // Get more candidates
+  // 1. Vector search — skipped when the store holds no embeddings, and
+  //    degraded to keyword-only if the embedding call fails right now.
+  let vectorResults = [];
+  if (vectorStore.hasVectors(agentId)) {
+    try {
+      const queryVector = await embedQuery(queryText);
+      vectorResults = vectorStore.search(agentId, queryVector, topK * 3); // Get more candidates
+    } catch (err) {
+      if (!isEmbeddingUnavailable(err)) throw err;
+      if (Date.now() - _lastQueryEmbedWarn > 60_000) {
+        _lastQueryEmbedWarn = Date.now();
+        logger.warn({ agentId, error: err.message }, 'Query embedding unavailable — keyword-only retrieval');
+      }
+    }
+  }
 
   // 2. Keyword search
   const keywordResults = keywordIndex.keywordSearch(agentId, queryText, topK * 3);
@@ -176,9 +218,14 @@ function mergeResults(vectorResults, keywordResults, topK) {
     }
   }
 
-  // Compute combined scores
+  // Compute combined scores. With no vector candidates at all (keyword-only
+  // store or embeddings down) the keyword score IS the score — otherwise
+  // every hit would be capped at 0.30 and look like a weak match.
+  const keywordOnly = vectorResults.length === 0;
   for (const r of resultMap.values()) {
-    r.score = (VECTOR_WEIGHT * r.vectorScore) + (KEYWORD_WEIGHT * r.keywordScore);
+    r.score = keywordOnly
+      ? r.keywordScore
+      : (VECTOR_WEIGHT * r.vectorScore) + (KEYWORD_WEIGHT * r.keywordScore);
   }
 
   // Sort by combined score and return top-K

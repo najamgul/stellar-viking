@@ -98,6 +98,7 @@ export function search(agentId, queryVector, topK = 3, filterDocId = null) {
   if (!agentStore || agentStore.length === 0) return [];
 
   const results = agentStore
+    .filter(item => Array.isArray(item.vector) && item.vector.length > 0)   // keyword-only chunks carry no vector
     .filter(item => !filterDocId || item.metadata.docId === filterDocId)
     .map(item => ({
       text: item.text,
@@ -148,6 +149,13 @@ export function deleteByAgent(agentId) {
 export function getAll(agentId) {
   ensureLoaded(agentId);
   return store.get(agentId) || [];
+}
+
+/** True if at least one stored chunk carries an embedding (else keyword-only). */
+export function hasVectors(agentId) {
+  ensureLoaded(agentId);
+  const agentStore = store.get(agentId);
+  return !!agentStore && agentStore.some(item => Array.isArray(item.vector) && item.vector.length > 0);
 }
 
 /**
