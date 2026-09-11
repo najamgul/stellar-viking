@@ -96,6 +96,45 @@ export function registerChatRoutes(app) {
     });
   });
 
+  // ─── Mode switch by phone (API-key auth) ────────────────────────
+  // The relaying CRM owns the "bot paused" switch and tells us about flips
+  // as they happen — a BD member taking a lead "In Progress" in their
+  // pipeline, pausing from their inbox, replying by hand — instead of
+  // waiting for the next inbound to mirror it. `human` also cancels every
+  // pending scheduled follow-up, and since nudges/drips only scan
+  // mode:'ai' conversations, the bot goes completely silent on that lead.
+  //
+  //   POST /api/relay/mode  { phone, mode:'human'|'ai', phoneNumberId?|agentId?, reason? }
+  app.post('/api/relay/mode', async (request, reply) => {
+    const { phone, mode, phoneNumberId, agentId, reason } = request.body || {};
+    if (!phone || !['human', 'ai'].includes(mode)) {
+      return reply.code(400).send({ error: 'phone and mode (human|ai) are required' });
+    }
+    const agent = agentId ? await db.getAgent(agentId)
+      : phoneNumberId ? await db.getAgentByWhatsappId(phoneNumberId) : null;
+    if (!agent) return reply.code(404).send({ error: 'agent not found for phoneNumberId/agentId' });
+
+    const lead = await chatStore.getLeadByPhone(agent.id, phone);
+    const convo = lead ? await chatStore.getOpenConversationForLead(lead.id) : null;
+    if (!lead || !convo) {
+      // Never chatted with the bot (or already closed) — nothing to silence.
+      return { ok: true, found: false, leadId: lead?.id || null, mode };
+    }
+
+    let cancelledFollowups = 0;
+    if (mode === 'human') cancelledFollowups = await chatStore.cancelPendingJobs(convo.id, 'followup');
+    const changed = convo.mode !== mode;
+    if (changed) {
+      await chatStore.updateConversation(convo.id, { mode });
+      broadcast('chat.mode_changed', { conversationId: convo.id, agentId: agent.id, mode, by: 'crm' });
+    }
+    if (reason && (changed || cancelledFollowups)) {
+      await chatStore.addLeadNote(lead.id, `AI ${mode === 'human' ? 'paused' : 'resumed'} by CRM: ${String(reason).slice(0, 200)}`, 'system');
+    }
+    logger.info({ conversationId: convo.id, mode, changed, cancelledFollowups, reason }, 'Mode set by relaying CRM');
+    return { ok: true, found: true, conversationId: convo.id, leadId: lead.id, mode, changed, cancelledFollowups };
+  });
+
   // ─── Public lead capture (landing pages / campaign forms) ────────
   // Returns a wa.me deep link so the lead opens the chat themselves —
   // their first message opens the 24h window (opt-in compliant, no
