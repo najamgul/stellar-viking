@@ -169,6 +169,16 @@ doesn't need this.
    - **WhatsApp Phone Number ID**: the numeric ID from Phase B
    - **WhatsApp Number**: the display number in international format, e.g.
      `+923001234567` (used to build wa.me links on the landing pages)
+   - **WhatsApp Access Token**: leave blank when the number lives in the same
+     Meta business portfolio as the server's `WHATSAPP_ACCESS_TOKEN`. If one
+     deployment serves numbers from **two different businesses** (e.g. Tohund
+     Guide and The Brand Friend), a system-user token only reaches the WABAs
+     of its own portfolio — inbound still arrives, but every reply fails with
+     a Graph 401/403 (`WhatsApp send failed` in the logs). Paste a system-user
+     token created inside *this* number's portfolio here.
+   - **Re-engagement Template / Language**: per-number overrides of
+     `WHATSAPP_FOLLOWUP_TEMPLATE` / `WHATSAPP_TEMPLATE_LANGUAGE`; templates are
+     approved per WABA, so a second business needs its own.
    - Fill company name, personality, greeting, etc.
    - **Status: active**
 3. **Knowledge Base** → upload your brand documents (pricing, FAQs,

@@ -1141,6 +1141,14 @@
         <div class="form-group"><label>WhatsApp Number (for wa.me links, e.g. +923001234567)</label><input id="fWhatsappNumber" placeholder="+923001234567" /></div>
       </div>
       <div class="form-group">
+        <label>WhatsApp Access Token (optional — a System User token from THIS number's Meta business portfolio; blank = the server's WHATSAPP_ACCESS_TOKEN)</label>
+        <input id="fWhatsappToken" type="password" autocomplete="off" placeholder="EAAG… — needed when this number belongs to a different business than the server token" />
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Re-engagement Template (optional — approved template name; blank = server default)</label><input id="fWhatsappTemplate" placeholder="followup_checkin" /></div>
+        <div class="form-group"><label>Template Language (must match Meta exactly, e.g. en vs en_US)</label><input id="fWhatsappTemplateLang" placeholder="en" /></div>
+      </div>
+      <div class="form-group">
         <label>Example Dialogue (optional — teaches the agent its exact texting/speaking style)</label>
         <textarea id="fExampleDialogue" rows="4" placeholder="Lead: kitna price hai gulmarg package ka?&#10;Agent: Gulmarg ka 3-night package ₹24,500 per person hai 😊 dates decide ki aapne?&#10;Lead: march me soch rahe hai&#10;Agent: perfect, march me snow bhi milega! kitne log honge?"></textarea>
       </div>
@@ -1541,6 +1549,11 @@
     document.getElementById('fTransfer').value = agent?.transferNumber || '';
     document.getElementById('fWhatsappPhoneId').value = agent?.whatsappPhoneNumberId || '';
     document.getElementById('fWhatsappNumber').value = agent?.whatsappNumber || '';
+    // The API returns a masked marker ("****abcd") for a stored token; sending
+    // that marker back leaves the token untouched, clearing the field removes it.
+    document.getElementById('fWhatsappToken').value = agent?.whatsappAccessToken || '';
+    document.getElementById('fWhatsappTemplate').value = agent?.whatsappFollowupTemplate || '';
+    document.getElementById('fWhatsappTemplateLang').value = agent?.whatsappTemplateLanguage || '';
     document.getElementById('fExampleDialogue').value = agent?.exampleDialogue || '';
     document.getElementById('fStatus').value = agent?.status || 'active';
     document.getElementById('agentModal').classList.add('open');
@@ -1568,6 +1581,9 @@
       transferNumber: document.getElementById('fTransfer').value || null,
       whatsappPhoneNumberId: document.getElementById('fWhatsappPhoneId').value || null,
       whatsappNumber: document.getElementById('fWhatsappNumber').value || null,
+      whatsappAccessToken: document.getElementById('fWhatsappToken').value.trim() || null,
+      whatsappFollowupTemplate: document.getElementById('fWhatsappTemplate').value.trim() || null,
+      whatsappTemplateLanguage: document.getElementById('fWhatsappTemplateLang').value.trim() || null,
       exampleDialogue: document.getElementById('fExampleDialogue').value || null,
       status: document.getElementById('fStatus').value,
     };
